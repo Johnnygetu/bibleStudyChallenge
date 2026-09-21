@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+:root {
+  /* Ink Palette (Light Theme Scale) */
+  --color-ink-950: #ffffff; /* App Background: Pure white */
+  --color-ink-900: #f8fafc; /* Card Background */
+  --color-ink-850: #ffffff; /* Card Background alt */
+  --color-ink-800: #f1f5f9; /* Borders */
+  --color-ink-700: #e2e8f0; /* Dividers */
+  --color-ink-600: #cbd5e1; /* Muted text */
+  --color-ink-500: #94a3b8; /* Secondary text */
+  --color-ink-400: #64748b; /* Primary text light */
+  --color-ink-300: #475569; /* Primary text */
+  --color-ink-200: #334155; /* Headings */
+  --color-ink-100: #0f172a; /* Darkest Text */
+  --color-ink-50:  #020617;
+
+  /* Primary Palette */
+  --color-primary-50: #cbe4f7;
+  --color-primary-100: #a3cff1;
+  --color-primary-200: #54a8e5;
+  --color-primary-300: #033b5c;
+  --color-primary-400: #022942;
+  --color-primary-500: #011e30;
+  --color-primary-600: #01121d;
+  --color-primary-700: #000b12;
+  --color-primary-800: #000407;
+  --color-primary-900: #000102;
+
+  /* Success Palette */
+  --color-success-300: #69db7c;
+  --color-success-400: #40c057;
+  --color-success-500: #2f9e44;
+  --color-success-600: #237b32;
+
+  /* Danger Palette */
+  --color-danger-300: #ffa8a8;
+  --color-danger-400: #ff8787;
+  --color-danger-500: #e03131;
+  --color-danger-600: #c92a2a;
+
+  /* Ember Palette */
+  --color-ember-300: #ffc078;
+  --color-ember-400: #ffa94d;
+  --color-ember-500: #e8590c;
+  --color-ember-600: #d04a06;
+
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--color-ink-950);
+  color: var(--color-primary-600); /* Use dark blue for text */
+  -webkit-font-smoothing: antialiased;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}

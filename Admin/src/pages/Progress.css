@@ -1,0 +1,244 @@
+.progress-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 0;
+}
+
+.progress-container {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.progress-header {
+  margin-bottom: 0.5rem;
+}
+
+.progress-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-family: var(--font-serif);
+  color: var(--color-ink-100);
+  margin: 0;
+}
+
+.progress-subtitle {
+  font-size: 0.75rem;
+  color: var(--color-ink-400);
+  margin: 0;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.75rem;
+  white-space: nowrap;
+  transition: all 0.2s;
+  background-color: var(--color-ink-850);
+  color: var(--color-ink-500);
+  border: 1px solid rgba(229, 229, 229, 0.5); /* ink-700/50 */
+}
+
+.toggle-btn.active {
+  background-color: var(--color-primary-400);
+  color: var(--color-ink-950);
+  border-color: transparent;
+}
+
+.toggle-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.progress-empty {
+  text-align: center;
+  padding: 4rem 0;
+}
+
+.empty-icon-wrapper {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background-color: var(--color-ink-850);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem auto;
+}
+
+.empty-icon-lg {
+  width: 2rem;
+  height: 2rem;
+  color: var(--color-ink-400);
+}
+
+.empty-text {
+  color: var(--color-ink-400);
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.progress-card {
+  background-color: var(--color-ink-850);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(229, 229, 229, 0.3); /* ink-700/30 */
+}
+
+.progress-card-btn {
+  width: 100%;
+  padding: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.progress-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.progress-info-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reader-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-ink-100);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.125rem 0.375rem;
+  border-radius: 9999px;
+}
+
+.badge-danger {
+  color: var(--color-danger-600);
+  background-color: rgba(224, 49, 49, 0.1); /* danger-500/10 */
+}
+
+.badge-success {
+  color: var(--color-success-600);
+  background-color: rgba(47, 158, 68, 0.1); /* success-500/10 */
+}
+
+.badge-icon {
+  width: 0.625rem;
+  height: 0.625rem;
+}
+
+.progress-bar-wrapper {
+  margin-top: 0.375rem;
+}
+
+.chevron-icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-ink-400);
+  flex-shrink: 0;
+}
+
+.progress-details {
+  padding: 0.25rem 0.875rem 0.875rem 0.875rem;
+  border-top: 1px solid rgba(229, 229, 229, 0.3); /* ink-700/30 */
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.stat-box {
+  background-color: var(--color-ink-800);
+  border-radius: 0.75rem;
+  padding: 0.625rem;
+  text-align: center;
+}
+
+.stat-val {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.with-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+}
+
+.stat-icon-sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+.stat-label {
+  font-size: 10px;
+  color: var(--color-ink-500);
+  font-weight: 500;
+  margin: 0;
+}
+
+.text-ink-100 { color: var(--color-ink-100); }
+.text-danger-600 { color: var(--color-danger-600); }
+.text-ember-600 { color: var(--color-ember-600); }
+.font-semibold { font-weight: 600; }
+.text-ink-200 { color: var(--color-ink-200); }
+
+.details-footer {
+  margin-top: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.footer-stat {
+  color: var(--color-ink-500);
+}
+
+.footer-phone {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-ink-400);
+}

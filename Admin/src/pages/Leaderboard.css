@@ -1,0 +1,235 @@
+.leaderboard-loading {
+  padding: 1.5rem 1.25rem 6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.skeleton-hero {
+  height: 8rem;
+  width: 100%;
+}
+
+.skeleton-item {
+  height: 4rem;
+  width: 100%;
+}
+
+.leaderboard-empty {
+  padding: 4rem 1.25rem 6rem;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 3rem;
+  height: 3rem;
+  color: rgba(2, 41, 66, 0.4); /* primary-400/40 */
+  margin: 0 auto 1rem;
+}
+
+.empty-title {
+  font-size: 1.125rem;
+  font-family: var(--font-serif);
+  color: var(--color-ink-100);
+  margin-bottom: 0.5rem;
+}
+
+.empty-subtitle {
+  font-size: 0.875rem;
+  color: var(--color-ink-400);
+}
+
+.leaderboard-container {
+  padding: 1.5rem 1.25rem 6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: fadeIn 0.3s ease-out;
+  max-width: 36rem;
+  margin: 0 auto;
+}
+
+.leaderboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.header-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--color-primary-400);
+}
+
+.header-title {
+  font-size: 1.5rem;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  color: var(--color-ink-100);
+  margin: 0;
+}
+
+.podium-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem 0 0.5rem;
+}
+
+.podium-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 80px;
+}
+
+.podium-avatar-wrapper {
+  position: relative;
+  margin-bottom: 0.5rem;
+}
+
+.podium-badge {
+  position: absolute;
+  top: -0.5rem;
+  right: -0.25rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background-color: var(--color-ink-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.podium-badge-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.podium-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  margin: 0;
+}
+
+.podium-stats {
+  font-size: 10px;
+  color: var(--color-ink-500);
+  margin: 0 0 0.5rem 0;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.podium-base {
+  width: 100%;
+  border-radius: 0.5rem 0.5rem 0 0;
+  border-top-width: 1px;
+  border-top-style: solid;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 0.5rem;
+}
+
+.podium-rank {
+  font-size: 1.125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Podium Colors */
+.podium-bg-1 { background: linear-gradient(to bottom, rgba(2, 41, 66, 0.2), rgba(2, 41, 66, 0.05)); }
+.podium-border-1 { border-color: rgba(2, 41, 66, 0.4); }
+.podium-text-1 { color: var(--color-primary-700); }
+
+.podium-bg-2 { background: linear-gradient(to bottom, rgba(64, 64, 64, 0.15), rgba(64, 64, 64, 0.05)); }
+.podium-border-2 { border-color: rgba(64, 64, 64, 0.3); }
+.podium-text-2 { color: var(--color-ink-200); }
+
+.podium-bg-3 { background: linear-gradient(to bottom, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05)); }
+.podium-border-3 { border-color: rgba(245, 158, 11, 0.3); }
+.podium-text-3 { color: #f59e0b; /* amber-500 */ }
+
+.list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  transition: all 0.2s;
+  background-color: var(--color-ink-850);
+  border: 1px solid rgba(229, 229, 229, 0.3); /* ink-700/30 */
+}
+
+.item-rank {
+  width: 1.75rem;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-500);
+}
+
+.item-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-ink-200);
+  margin: 0;
+}
+
+.item-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.125rem;
+}
+
+.stat-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--color-ink-400);
+}
+
+.stat-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  color: rgba(2, 41, 66, 0.7); /* primary-400/70 */
+}
+
+.item-score {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-primary-700);
+  font-variant-numeric: tabular-nums;
+}
+
+.footer-text {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--color-ink-500);
+  padding-top: 1rem;
+  margin: 0;
+}
