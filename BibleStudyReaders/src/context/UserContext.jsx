@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { waitForTelegramUser } from "@/lib/telegram";
+import { useGeneralContext } from "@/context/GeneralContext";
 
 const STORAGE_KEY = "bible_challenge_user_details";
 
@@ -24,6 +25,7 @@ export const UserContext = createContext(null);
 export function UserProvider({ children }) {
   const [user, setUser] = useState(loadStoredUser);
   const [telegramUser, setTelegramUser] = useState(null);
+  const { apiUrl } = useGeneralContext();
 
   // Hydrate the Telegram user when it becomes available (first open).
   useEffect(() => {
@@ -37,13 +39,40 @@ export function UserProvider({ children }) {
   }, []);
 
   // The chat id always comes silently from the Telegram bot — never typed.
-  const register = (fullName) => {
-    const next = {
-      fullName,
-      chatId: telegramUser?.id ? String(telegramUser.id) : "",
-    };
+  // Creates the matching row in the backend (tg_users) before marking this
+  // device registered, so a saved local user always has a server-side user.
+  const register = async (fullName) => {
+    const chatId = telegramUser?.id ? String(telegramUser.id) : "";
+
+    if (chatId) {
+      let response;
+      try {
+        response = await fetch(`${apiUrl}/tg-users`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ chat_id: Number(chatId), full_name: fullName }),
+        });
+      } catch {
+        throw new Error("We could not reach the server. Check your connection and try again.");
+      }
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        const firstError = payload?.errors ? Object.values(payload.errors)[0]?.[0] : null;
+        throw new Error(firstError ?? payload?.message ?? "We could not create your account. Please try again.");
+      }
+    } else {
+      // No Telegram context (local preview outside the bot): register locally only.
+      console.warn("No Telegram chat id available — skipping backend registration.");
+    }
+
+    const next = { fullName, chatId };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setUser(next);
+    return next;
   };
 
   const value = {
