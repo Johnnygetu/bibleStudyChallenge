@@ -5,7 +5,7 @@ export const PROFILE = {
   id: "00000000-0000-0000-0000-000000000000",
   telegram_id: 12345,
   username: "devmode",
-  first_name: "Developer",
+  first_name: "Issav",
   last_name: "Mode",
   photo_url: "",
   current_streak: 12,

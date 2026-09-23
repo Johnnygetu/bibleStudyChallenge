@@ -2,15 +2,15 @@ import { useState } from "react";
 import { BookOpen, Trophy } from "lucide-react";
 import { TodayScreen } from "./components/TodayScreen.jsx";
 import { LeaderboardScreen } from "./components/LeaderboardScreen.jsx";
-import { AppProvider } from "./lib/context.jsx";
-import { PROFILE } from "./lib/data.js";
+import { GeneralProvider } from "./context/GeneralContext.jsx";
+import { UserProvider, useUserContext } from "./context/UserContext.jsx";
+import { RegistrationModal } from "./components/RegistrationModal.jsx";
 import "./components/App.css";
-
-// Registration flow returns when integration starts:
-// import { RegistrationModal } from "./components/RegistrationModal.jsx";
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState("today");
+  // First open: no registered user yet -> show the registration modal.
+  const { isRegistered } = useUserContext();
 
   const tabs = [
     { id: "today", label: "Today", icon: BookOpen },
@@ -19,6 +19,7 @@ function AppContent() {
 
   return (
     <div className="app-shell">
+      {!isRegistered && <RegistrationModal />}
       <main className="app-main">
         {activeTab === "today" && <TodayScreen onNavigate={(tab) => setActiveTab(tab)} />}
         {activeTab === "leaderboard" && <LeaderboardScreen />}
@@ -51,9 +52,11 @@ function AppContent() {
 
 function App() {
   return (
-    <AppProvider value={{ profile: PROFILE }}>
-      <AppContent />
-    </AppProvider>
+    <GeneralProvider>
+      <UserProvider>
+        <AppContent />
+      </UserProvider>
+    </GeneralProvider>
   );
 }
 

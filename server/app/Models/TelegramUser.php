@@ -12,6 +12,7 @@ class TelegramUser extends Model
     protected $table = 'tg_users';
     protected $fillable = [
         'chat_id',
-        'full_name'
+        'full_name',
+        'phone_number'
     ];
 }

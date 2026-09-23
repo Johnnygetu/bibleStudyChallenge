@@ -1,13 +1,13 @@
 import { useEffect, useRef } from "react";
 import { Flame, Trophy, Crown, Brain } from "lucide-react";
-import { useApp } from "@/lib/context";
+import { useGeneralContext } from "@/context/GeneralContext";
 import { LEADERBOARD } from "@/lib/data";
 import { Avatar } from "@/components/ui";
 import ayatLogo from "@/assets/ayat-logo.png";
 import "./LeaderboardScreen.css";
 
 export function LeaderboardScreen() {
-  const { profile } = useApp();
+  const { profile } = useGeneralContext();
   const myEntryRef = useRef(null);
 
   const entries = LEADERBOARD;

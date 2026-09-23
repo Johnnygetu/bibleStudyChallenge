@@ -5,3 +5,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/tg-users', [TgUserController::class, 'store']);
 Route::get('/tg-users/{chatId}', [TgUserController::class, 'show']);
+
+Route::get('test', function () {
+    return response([
+        'message' => "Test"
+    ], 200);
+});

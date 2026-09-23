@@ -1,18 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useUserContext } from "@/context/UserContext";
 import "./RegistrationModal.css";
 
-export function RegistrationModal({ onComplete }) {
+// The user logic (Telegram hydration, chat id, persistence) lives in UserContext;
+// this modal only collects the one thing the user must type: their name.
+export function RegistrationModal() {
+  const { suggestedName, register } = useUserContext();
   const [fullName, setFullName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+
+  // Prefill with the Telegram name once it arrives — without clobbering
+  // anything the user has already typed.
+  useEffect(() => {
+    setFullName((prev) => prev || suggestedName);
+  }, [suggestedName]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (fullName.trim() && phoneNumber.trim()) {
-      localStorage.setItem(
-        "bible_challenge_user_details",
-        JSON.stringify({ fullName, phoneNumber })
-      );
-      onComplete();
+    if (fullName.trim()) {
+      register(fullName.trim());
     }
   };
 
@@ -40,21 +45,6 @@ export function RegistrationModal({ onComplete }) {
                 onChange={(e) => setFullName(e.target.value)}
                 className="field__input"
                 placeholder="John Doe"
-              />
-            </div>
-
-            <div className="field">
-              <label htmlFor="phoneNumber" className="field__label">
-                Phone Number
-              </label>
-              <input
-                id="phoneNumber"
-                type="tel"
-                required
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                className="field__input"
-                placeholder="+1 234 567 8900"
               />
             </div>
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Flame, BookOpen, Check, ChevronRight, Sunrise, Trophy, Lock, Brain } from "lucide-react";
-import { useApp } from "@/lib/context";
+import { useGeneralContext } from "@/context/GeneralContext";
 import {
   TODAY_GROUPS,
   COMPLETED_CHAPTERS,
@@ -15,7 +15,7 @@ import ayatLogo from "@/assets/ayat-logo.png";
 import "./TodayScreen.css";
 
 export function TodayScreen({ onNavigate }) {
-  const { profile } = useApp();
+  const { profile } = useGeneralContext();
   // Local-only state; nothing persists until integration starts.
   const [completedLabels, setCompletedLabels] = useState(() => new Set(COMPLETED_CHAPTERS));
   const [quizAnswers, setQuizAnswers] = useState({});
