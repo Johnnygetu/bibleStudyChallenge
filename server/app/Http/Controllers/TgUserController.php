@@ -18,6 +18,13 @@ class TgUserController extends Controller
             [
                 'chat_id' => ['required', 'integer'],
                 'full_name' => ['required', 'string', 'max:255'],
+                'phone_number' => [
+                    'required',
+                    'string',
+                    'max:20',
+                    'regex:/^\+?[\d\s\-()]{6,20}$/',
+                    'unique:tg_users,phone_number',
+                ],
             ],
             [
                 'chat_id.required' => 'The Telegram chat ID is required.',
@@ -25,6 +32,11 @@ class TgUserController extends Controller
                 'full_name.required' => 'The full name is required.',
                 'full_name.string' => 'The full name must be a text value.',
                 'full_name.max' => 'The full name may not be longer than 255 characters.',
+                'phone_number.required' => 'The phone number is required.',
+                'phone_number.string' => 'The phone number must be a text value.',
+                'phone_number.max' => 'The phone number may not be longer than 20 characters.',
+                'phone_number.regex' => 'The phone number must be a valid phone number.',
+                'phone_number.unique' => 'This phone number is already registered.',
             ]
         );
 

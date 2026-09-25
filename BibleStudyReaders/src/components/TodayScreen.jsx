@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Flame, BookOpen, Check, ChevronRight, Sunrise, Trophy, Lock, Brain } from "lucide-react";
 import { useGeneralContext } from "@/context/GeneralContext";
+import { useUserContext } from "@/context/UserContext";
 import {
   TODAY_GROUPS,
   COMPLETED_CHAPTERS,
@@ -16,6 +17,8 @@ import "./TodayScreen.css";
 
 export function TodayScreen({ onNavigate }) {
   const { profile } = useGeneralContext();
+  // The registered name lives in localStorage (saved by the registration modal).
+  const { user } = useUserContext();
   // Local-only state; nothing persists until integration starts.
   const [completedLabels, setCompletedLabels] = useState(() => new Set(COMPLETED_CHAPTERS));
   const [quizAnswers, setQuizAnswers] = useState({});
@@ -47,6 +50,7 @@ export function TodayScreen({ onNavigate }) {
     hapticNotification(q && q.correct_option === optionKey ? "success" : "error");
   };
 
+  const displayName = user?.fullName?.trim() || profile.first_name;
   const greeting = today.getHours() < 12 ? "Good morning" : today.getHours() < 18 ? "Good afternoon" : "Good evening";
   const todayDateStr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
@@ -78,7 +82,7 @@ export function TodayScreen({ onNavigate }) {
       {/* Greeting Header */}
       <div>
         <h1 className="greeting__title">
-          {greeting}, {profile.first_name}
+          {greeting}, {displayName}
         </h1>
         <p className="greeting__date">{todayDateStr}</p>
       </div>
