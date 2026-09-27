@@ -13,8 +13,9 @@ class PlanSeeder extends Seeder
             ['name' => 'Chronological Bible Reading'],
             [
                 'no_days'              => 183,
-                'starting_day'         => now()->year . '-10-11',
+                'starting_day'         => today(),
                 'reading_days_per_week' => 7,
+                'daily_verse_limit'    => 176,
             ]
         );
     }

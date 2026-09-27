@@ -17,6 +17,7 @@ return new class extends Migration
             $table->integer('no_days');
             $table->date('starting_day');
             $table->integer('reading_days_per_week')->default(7);
+            $table->integer('daily_verse_limit')->default(176);
             $table->timestamps();
         });
     }

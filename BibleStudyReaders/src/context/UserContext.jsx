@@ -125,7 +125,7 @@ export function UserProvider({ children }) {
 
     let response;
     try {
-      response = await fetch(`${apiUrl}/tg-users`, {
+      response = await fetch(`${apiUrl}/readers`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -133,7 +133,7 @@ export function UserProvider({ children }) {
         },
         body: JSON.stringify({
           chat_id: Number(chatId),
-          full_name: fullName,
+          name: fullName,
           phone_number: phone,
         }),
       });
@@ -141,13 +141,14 @@ export function UserProvider({ children }) {
       throw new Error("We could not reach the server. Check your connection and try again.");
     }
 
+    const payload = await response.json().catch(() => null);
+
     if (!response.ok) {
-      const payload = await response.json().catch(() => null);
       const firstError = payload?.errors ? Object.values(payload.errors)[0]?.[0] : null;
       throw new Error(firstError ?? payload?.message ?? "We could not create your account. Please try again.");
     }
 
-    const next = { fullName, phone, chatId };
+    const next = { id: payload?.id, fullName, phone, chatId };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setUser(next);
     return next;
