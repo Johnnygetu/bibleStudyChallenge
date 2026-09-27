@@ -11,8 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('tg_users', function (Blueprint $table) {
-            $table->string('phone_number')->unique()->nullable(false);
+        Schema::create('scores', function (Blueprint $table) {
+            $table->id();
+            $table->integer('score')->default(0);
+            $table->foreignId('reader_id')->constrained('readers')->cascadeOnDelete();
+            $table->timestamps();
         });
     }
 
@@ -21,8 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('tg_users', function (Blueprint $table) {
-            $table->dropColumn('phone_number');
-        });
+        Schema::dropIfExists('scores');
     }
 };

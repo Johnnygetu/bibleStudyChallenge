@@ -1,0 +1,29 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('study_days', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('reader_id')->constrained('readers')->cascadeOnDelete();
+            $table->foreignId('last_studied_chapter_id')->constrained('book_chapters')->cascadeOnDelete();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('study_days');
+    }
+};
