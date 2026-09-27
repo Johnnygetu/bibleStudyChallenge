@@ -5,18 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ChronologicalOrder extends Model
+class Order extends Model
 {
-    /** @var string */
-    protected $table = 'chronological_order';
+    protected $table = 'orders';
 
     protected $fillable = [
+        'plan_id',
         'chapter_id',
     ];
 
-    /**
-     * The chapter that occupies this position in the chronological order.
-     */
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class);
+    }
+
     public function chapter(): BelongsTo
     {
         return $this->belongsTo(BookChapter::class, 'chapter_id');

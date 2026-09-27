@@ -11,11 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tg_users', function (Blueprint $table) {
+        Schema::create('admins', function (Blueprint $table) {
             $table->id();
+            $table->bigInteger('chat_id')->unique();
             $table->timestamps();
-            $table->bigInteger('chat_id')->nullable(false);
-            $table->string('full_name')->nullable(false);
         });
     }
 
@@ -24,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tg_users');
+        Schema::dropIfExists('admins');
     }
 };

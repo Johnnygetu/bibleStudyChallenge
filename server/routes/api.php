@@ -1,20 +1,10 @@
 <?php
 
-use App\Http\Controllers\ChronologicalOrderController;
-use App\Http\Controllers\TgUserController;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ReaderController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/tg-users', [TgUserController::class, 'store']);
-Route::get('/tg-users/{chatId}', [TgUserController::class, 'show']);
+Route::get('test', fn() => response(['message' => 'Test'], 200));
 
-Route::get('/chronological-orders', [ChronologicalOrderController::class, 'index']);
-Route::post('/chronological-orders', [ChronologicalOrderController::class, 'storeRange']);
-Route::post('/chronological-order', [ChronologicalOrderController::class, 'storeRange']);
-Route::match(['get', 'post'], '/chronological-orders/{start_id}/{end_id}', [ChronologicalOrderController::class, 'storeRange']);
-Route::match(['get', 'post'], '/chronological-order/{start_id}/{end_id}', [ChronologicalOrderController::class, 'storeRange']);
-
-Route::get('test', function () {
-    return response([
-        'message' => 'Test',
-    ], 200);
-});
+Route::apiResource('admins', AdminController::class);
+Route::apiResource('readers', ReaderController::class);

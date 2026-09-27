@@ -13,10 +13,12 @@ return new class extends Migration
     {
         Schema::create('book_chapters', function (Blueprint $table) {
             $table->id();
-            $table->timestamps();
             $table->string('book');
             $table->integer('chapter_number');
             $table->integer('num_verses');
+            $table->timestamps();
+
+            $table->unique(['book', 'chapter_number']);
         });
     }
 
