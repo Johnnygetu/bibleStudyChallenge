@@ -10,6 +10,17 @@ export function getTelegramInitData() {
   return window.Telegram?.WebApp?.initData ?? "";
 }
 
+// telegram-web-app.js defines window.Telegram.WebApp in *every* browser, even a
+// plain one, so the object existing proves nothing. A genuine launch carries
+// initData (and a real platform), so that is what we look for.
+export function isTelegramContext() {
+  const webApp = getTelegramWebApp();
+  if (!webApp) return false;
+  if (getTelegramUser()) return true;
+  if (typeof webApp.initData === "string" && webApp.initData !== "") return true;
+  return typeof webApp.platform === "string" && webApp.platform !== "unknown";
+}
+
 // Resolves with the Telegram user as soon as it is available. The
 // telegram-web-app.js script may populate initDataUnsafe after React mounts,
 // so we poll briefly instead of trusting a single synchronous read.

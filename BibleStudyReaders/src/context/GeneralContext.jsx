@@ -6,6 +6,7 @@ export const GeneralContext = createContext(null);
 export function GeneralProvider({ children }) {
   // The provider owns the app-wide value; swap PROFILE for fetched data at integration.
   const [profile, setProfile] = useState(PROFILE);
+  // const apiUrl = 'https://e311-196-188-36-206.ngrok-free.app'
   const apiUrl = 'http://127.0.0.1:8000/api'
 
   const value = { profile, setProfile, apiUrl };
