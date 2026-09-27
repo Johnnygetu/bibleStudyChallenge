@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Order;
+use App\Models\Plan;
 use App\Models\Reader;
 use Illuminate\Http\Request;
 
@@ -41,5 +43,200 @@ class ReaderController extends Controller
     {
         $reader->delete();
         return response(null, 204);
+    }
+
+    /**
+     * Shared helper to calculate a reader's exact lag status against the plan schedule.
+     */
+    private function calculateLagData(Reader $reader, Plan $plan, $includeToday = true)
+    {
+        $query = $reader->studyDays()->latest('id');
+        if (!$includeToday) {
+            $query->whereDate('created_at', '<', today());
+        }
+        $lastStudy = $query->first();
+        $actualOrderId = 0;
+
+        if ($lastStudy) {
+            $lastOrder = Order::where('plan_id', $plan->id)
+                ->where('chapter_id', $lastStudy->last_studied_chapter_id)
+                ->first();
+
+            if ($lastOrder) {
+                $actualOrderId = $lastOrder->id;
+            }
+        }
+
+        $daysElapsed = $plan->starting_day->startOfDay()->diffInDays(now()->startOfDay()) + 1;
+
+        if ($daysElapsed < 1) {
+            return [
+                'is_lagging' => false,
+                'current_day_number' => 0,
+                'actual_order_id' => $actualOrderId,
+                'lagging_chapters' => 0,
+                'lagging_verses' => 0,
+            ];
+        }
+
+        $schedule = $plan->getSchedule();
+        $targetDayIndex = min($daysElapsed - 1, count($schedule) - 1);
+        $targetDayData = $schedule[$targetDayIndex];
+        
+        $targetChapters = $targetDayData['chapters'];
+        $targetOrderId = end($targetChapters)['order_id'];
+
+        if ($actualOrderId >= $targetOrderId) {
+            return [
+                'is_lagging' => false,
+                'current_day_number' => $daysElapsed,
+                'target_day_number' => $targetDayData['day'],
+                'actual_order_id' => $actualOrderId,
+                'target_order_id' => $targetOrderId,
+                'lagging_chapters' => 0,
+                'lagging_verses' => 0,
+            ];
+        }
+
+        $missedOrders = Order::where('plan_id', $plan->id)
+            ->where('id', '>', $actualOrderId)
+            ->where('id', '<=', $targetOrderId)
+            ->with('chapter')
+            ->get();
+
+        return [
+            'is_lagging' => true,
+            'current_day_number' => $daysElapsed,
+            'target_day_number' => $targetDayData['day'],
+            'actual_order_id' => $actualOrderId,
+            'target_order_id' => $targetOrderId,
+            'lagging_chapters' => $missedOrders->count(),
+            'lagging_verses' => $missedOrders->sum(fn ($o) => $o->chapter->num_verses),
+        ];
+    }
+
+    /**
+     * Fetch daily readings. Applies dynamic limits based on the 30-day tolerance
+     * buffer, and always finishes on a whole chapter boundary.
+     */
+    public function dailyReadings(Reader $reader, Plan $plan)
+    {
+        $baseLimit = $plan->daily_verse_limit;
+        $dynamicLimit = $baseLimit;
+        $isCatchUpMode = false;
+        $extraVersesAdded = 0;
+
+        // Calculate lag based on yesterday's progress. This ensures the daily readings
+        // stay perfectly fixed for the entire calendar day, even if they save progress.
+        $lagData = $this->calculateLagData($reader, $plan, false);
+
+        // 30-day Tolerance Logic
+        if ($lagData['is_lagging']) {
+            $toleranceDays = 30;
+            $maxToleranceVerses = $toleranceDays * $baseLimit;
+
+            // They have exhausted the 30-day buffer
+            if ($lagData['lagging_verses'] > $maxToleranceVerses) {
+                $excessVerses = $lagData['lagging_verses'] - $maxToleranceVerses;
+                $totalPlanDays = count($plan->getSchedule());
+                
+                // Calculate remaining days until absolute deadline
+                $remainingDays = max(1, ($totalPlanDays + $toleranceDays) - $lagData['current_day_number'] + 1);
+                
+                $extraVersesAdded = (int) ceil($excessVerses / $remainingDays);
+                $dynamicLimit = $baseLimit + $extraVersesAdded;
+                $isCatchUpMode = true;
+            }
+        }
+
+        $startAfterOrderId = $lagData['actual_order_id'];
+
+        // Get the absolute latest progress so we know which of today's chapters are already checked off
+        $currentStudy = $reader->studyDays()->latest('id')->first();
+        $currentOrderId = 0;
+        if ($currentStudy) {
+            $currentOrder = Order::where('plan_id', $plan->id)
+                ->where('chapter_id', $currentStudy->last_studied_chapter_id)
+                ->first();
+            if ($currentOrder) {
+                $currentOrderId = $currentOrder->id;
+            }
+        }
+
+        $upcoming = Order::where('plan_id', $plan->id)
+            ->where('id', '>', $startAfterOrderId)
+            ->orderBy('id')
+            ->with('chapter')
+            ->get();
+
+        $versesUsed = 0;
+        $readings   = [];
+
+        foreach ($upcoming as $order) {
+            $chapter    = $order->chapter;
+            $verseCount = $chapter->num_verses;
+
+            $readings[] = [
+                'order_id'       => $order->id,
+                'chapter_id'     => $chapter->id,
+                'book'           => $chapter->book,
+                'chapter_number' => $chapter->chapter_number,
+                'num_verses'     => $verseCount,
+                'is_completed'   => $order->id <= $currentOrderId,
+            ];
+
+            $versesUsed += $verseCount;
+
+            // Option B rule: Finish the chapter! 
+            // We add the chapter first, then if we hit/passed the limit, we stop.
+            if ($versesUsed >= $dynamicLimit) {
+                break;
+            }
+        }
+
+        return response([
+            'reader_id'           => $reader->id,
+            'plan_id'             => $plan->id,
+            'base_verse_limit'    => $baseLimit,
+            'dynamic_verse_limit' => $dynamicLimit,
+            'is_catch_up_mode'    => $isCatchUpMode,
+            'extra_verses_added'  => $extraVersesAdded,
+            'verses_assigned'     => $versesUsed,
+            'chapters_count'      => count($readings),
+            'readings'            => $readings,
+        ]);
+    }
+
+    /**
+     * Provide the reader's lag status using the shared helper.
+     */
+    public function lagStatus(Reader $reader, Plan $plan)
+    {
+        $lagData = $this->calculateLagData($reader, $plan);
+        $lagData['message'] = $lagData['is_lagging'] 
+            ? 'You are lagging behind the schedule.' 
+            : 'You are on track or ahead of schedule!';
+            
+        return response()->json($lagData);
+    }
+
+    /**
+     * Save the reader's progress for today.
+     */
+    public function saveProgress(Request $request, Reader $reader, Plan $plan)
+    {
+        $data = $request->validate([
+            'chapter_id' => 'required|exists:book_chapters,id',
+        ]);
+
+        $studyDay = $reader->studyDays()->whereDate('created_at', today())->first();
+
+        if ($studyDay) {
+            $studyDay->update(['last_studied_chapter_id' => $data['chapter_id']]);
+        } else {
+            $studyDay = $reader->studyDays()->create(['last_studied_chapter_id' => $data['chapter_id']]);
+        }
+
+        return response()->json(['message' => 'Progress saved successfully.', 'study_day' => $studyDay]);
     }
 }
