@@ -1,29 +1,16 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Search, Phone, X, Flame, MoreVertical, Trash2, Edit2, Users } from 'lucide-react';
-import { dummyReaders } from '@/lib/dummy';
-import { Avatar } from '@/components/ui';
+import { Avatar, ErrorState, ReaderSkeletonList } from '@/components/ui';
+import { useUsersContext } from '@/context/UsersContext';
 
 export default function Readers() {
-  const [readers, setReaders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { users, loading, error, reload, patchUser, removeUser } = useUsersContext();
   const [search, setSearch] = useState('');
 
   const [editing, setEditing] = useState(null);
   const [menuFor, setMenuFor] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 500));
-    const data = [...dummyReaders].sort((a, b) => a.name.localeCompare(b.name));
-    setReaders(data);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const filtered = readers.filter((r) => {
+  const filtered = users.filter((r) => {
     return (
       r.name.toLowerCase().includes(search.toLowerCase()) ||
       (r.phone || '').includes(search)
@@ -36,15 +23,17 @@ export default function Readers() {
     dropped: 'badge badge-dropped',
   };
 
-  async function deleteReader(id) {
-    console.log('Dummy delete reader', id);
-    setReaders(prev => prev.filter(r => r.id !== id));
+  function deleteReader(id) {
+    // Local-only until a DELETE endpoint is wired up.
+    console.log('Remove reader from view', id);
+    removeUser(id);
     setMenuFor(null);
   }
 
-  async function updateStatus(id, status) {
-    console.log('Dummy update status', id, status);
-    setReaders(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+  function updateStatus(id, status) {
+    // Local-only until the readers table tracks status.
+    console.log('Set reader status', id, status);
+    patchUser(id, { status });
     setMenuFor(null);
   }
 
@@ -53,7 +42,7 @@ export default function Readers() {
       {/* Header */}
       <div>
         <h2 className="page-title serif">Readers</h2>
-        <p className="page-sub">{readers.length} total readers · Readers sign up via the Telegram bot</p>
+        <p className="page-sub">{users.length} total readers · Readers sign up via the Telegram bot</p>
       </div>
 
       {/* Search */}
@@ -70,19 +59,19 @@ export default function Readers() {
 
       {/* List */}
       {loading ? (
-        <div className="list-loader">
-          <div className="spinner spinner-primary" />
-        </div>
+        <ReaderSkeletonList />
+      ) : error ? (
+        <ErrorState message={error} onRetry={reload} />
       ) : filtered.length === 0 ? (
         <div className="empty-block">
           <div className="empty-circle">
             <Users className="icon-32 empty-glyph" />
           </div>
           <p className="empty-title">
-            {readers.length === 0 ? 'No readers yet' : 'No readers match your search'}
+            {users.length === 0 ? 'No readers yet' : 'No readers match your search'}
           </p>
           <p className="empty-sub">
-            {readers.length === 0 ? 'Readers will appear here once they start the bot' : 'Try a different filter or search term'}
+            {users.length === 0 ? 'Readers will appear here once they start the bot' : 'Try a different filter or search term'}
           </p>
         </div>
       ) : (
@@ -165,7 +154,13 @@ export default function Readers() {
       )}
 
       {/* Edit modal */}
-      {editing && <ReaderForm reader={editing} onClose={() => setEditing(null)} onSaved={load} />}
+      {editing && (
+        <ReaderForm
+          reader={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(patch) => patchUser(editing.id, patch)}
+        />
+      )}
     </div>
   );
 }
@@ -180,9 +175,13 @@ function ReaderForm({ reader, onClose, onSaved }) {
     if (!name.trim()) return;
     setSaving(true);
     await new Promise(r => setTimeout(r, 500));
-    console.log('Dummy update reader', reader.id, { name: name.trim(), phone: phone.trim() || null, telegram_id: telegramId.trim() || null });
+    console.log('Update reader locally', reader.id, { name: name.trim(), phone: phone.trim() || null, telegram_id: telegramId.trim() || null });
     setSaving(false);
-    onSaved();
+    onSaved({
+      name: name.trim(),
+      phone: phone.trim() || null,
+      telegram_id: telegramId.trim() || null,
+    });
     onClose();
   }
 

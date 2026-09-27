@@ -91,6 +91,23 @@ export function Skeleton({ className = "" }) {
   return <div className={`skeleton ${className}`} />;
 }
 
+export function ReaderSkeletonList({ count = 6 }) {
+  return (
+    <div className="list-tight" aria-hidden="true">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="card row reader-card sk-row">
+          <div className="sk-circle" />
+          <div className="row-main">
+            <div className="sk-line sk-line-name" />
+            <div className="sk-line sk-line-meta" />
+          </div>
+          <div className="sk-badge" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ErrorState({ message, onRetry }) {
   return (
     <div className="error-state">

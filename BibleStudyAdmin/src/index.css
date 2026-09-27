@@ -1290,6 +1290,43 @@ img.avatar {
 .sk-lg { height: 8rem; width: 100%; }
 .sk-md { height: 4rem; width: 100%; }
 
+/* Reader list skeleton (loading state of the Readers page) */
+.sk-row {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.sk-circle {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  background: var(--ink-700);
+  flex-shrink: 0;
+}
+
+.sk-line {
+  border-radius: 9999px;
+  background: var(--ink-700);
+}
+
+.sk-line-name {
+  width: 55%;
+  height: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.sk-line-meta {
+  width: 35%;
+  height: 0.625rem;
+}
+
+.sk-badge {
+  width: 3.25rem;
+  height: 1.125rem;
+  border-radius: 9999px;
+  background: var(--ink-700);
+  flex-shrink: 0;
+}
+
 .error-state {
   display: flex;
   flex-direction: column;
