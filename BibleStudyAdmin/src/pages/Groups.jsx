@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Users, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { X, Users, ChevronLeft, ChevronRight, AlertCircle, ArrowLeftRight } from 'lucide-react';
 import { Avatar, ErrorState, ReaderSkeletonList } from '@/components/ui';
 import { useGroupsContext } from '@/context/GroupsContext';
 
@@ -17,6 +17,7 @@ export default function Groups() {
     closeGroup,
   } = useGroupsContext();
   const [showAssign, setShowAssign] = useState(false);
+  const [swapTarget, setSwapTarget] = useState(null); // member being moved
 
   // Detail view: one group and its members
   if (selectedId) {
@@ -34,9 +35,11 @@ export default function Groups() {
             <div>
               <h2 className="page-title serif">{groupDetail?.name || 'Group'}</h2>
               <p className="page-sub">
-                {detailLoading
-                  ? 'Loading members...'
-                  : `${groupDetail?.readers?.length ?? 0} ${(groupDetail?.readers?.length ?? 0) === 1 ? 'member' : 'members'}`}
+                {detailLoading ? (
+                  <span className="sk-line sk-sub" />
+                ) : (
+                  `${groupDetail?.readers?.length ?? 0} ${(groupDetail?.readers?.length ?? 0) === 1 ? 'member' : 'members'}`
+                )}
               </p>
             </div>
           </div>
@@ -63,9 +66,21 @@ export default function Groups() {
                   <p className="row-title truncate">{member.name}</p>
                   <p className="row-sub truncate">{member.phone_number || 'No phone'}</p>
                 </div>
+                <button
+                  onClick={() => setSwapTarget(member)}
+                  className="btn-ghost"
+                  aria-label={`Move ${member.name} to another group`}
+                  title="Move to another group"
+                >
+                  <ArrowLeftRight className="icon-20" />
+                </button>
               </div>
             ))}
           </div>
+        )}
+
+        {swapTarget && (
+          <SwapForm member={swapTarget} onClose={() => setSwapTarget(null)} />
         )}
       </div>
     );
@@ -78,7 +93,13 @@ export default function Groups() {
         <div>
           <h2 className="page-title serif">Groups</h2>
           <p className="page-sub">
-            {groups.length} {groups.length === 1 ? 'group' : 'groups'} · Readers are organised into groups by the bot
+            {loading ? (
+              <span className="sk-line sk-sub" />
+            ) : (
+              <>
+                {groups.length} {groups.length === 1 ? 'group' : 'groups'} · Readers are organised into groups by the bot
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -124,6 +145,87 @@ export default function Groups() {
       )}
 
       {showAssign && <AssignForm onClose={() => setShowAssign(false)} />}
+    </div>
+  );
+}
+
+// Pick a different group for the selected member.
+function SwapForm({ member, onClose }) {
+  const { groups, groupDetail, swapMember } = useGroupsContext();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const options = groups.filter((g) => g.id !== groupDetail?.id);
+
+  async function move(targetGroupId) {
+    setSaving(true);
+    setError('');
+    try {
+      await swapMember({
+        groupId: groupDetail.id,
+        readerId: member.id,
+        targetGroupId,
+      });
+      onClose();
+    } catch (err) {
+      console.error('Failed to move reader:', err);
+      setError(err.message || 'Failed to move this reader.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay fade-in" onClick={onClose}>
+      <div className="modal scale-in" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3 className="modal-title serif">Move {member.name}</h3>
+          <button onClick={onClose} className="btn-ghost">
+            <X className="icon-20" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="form-error">
+            <AlertCircle className="icon-16 form-error-icon" />
+            {error}
+          </div>
+        )}
+
+        {options.length === 0 ? (
+          <p className="assign-hint">
+            There are no other groups yet. Assign members first, then try again.
+          </p>
+        ) : (
+          <div className="list-tight">
+            {options.map((group) => (
+              <button
+                key={group.id}
+                onClick={() => move(group.id)}
+                disabled={saving}
+                className="card row row-btn"
+              >
+                <Avatar name={group.name} size={40} />
+                <div className="row-main">
+                  <p className="row-title truncate">{group.name}</p>
+                  <p className="row-sub truncate">
+                    {group.readers_count} {group.readers_count === 1 ? 'reader' : 'readers'}
+                  </p>
+                </div>
+                <ChevronRight className="icon-16 row-chevron" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        <button
+          onClick={onClose}
+          disabled={saving}
+          className="btn-primary btn-block btn-save"
+        >
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }

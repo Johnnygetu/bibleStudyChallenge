@@ -40,7 +40,13 @@ export default function Readers() {
       {/* Header */}
       <div>
         <h2 className="page-title serif">Readers</h2>
-        <p className="page-sub">{users.length} total readers · Readers sign up via the Telegram bot</p>
+        <p className="page-sub">
+          {loading ? (
+            <span className="sk-line sk-sub" />
+          ) : (
+            `${users.length} total readers · Readers sign up via the Telegram bot`
+          )}
+        </p>
       </div>
 
       {/* Search */}

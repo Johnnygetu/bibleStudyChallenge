@@ -50,6 +50,37 @@ class GroupController extends Controller
     }
 
     /**
+     * Move a reader from this group to another one.
+     */
+    public function swapMember(Request $request, Group $group)
+    {
+        $data = $request->validate([
+            'reader_id' => 'required|integer|exists:readers,id',
+            'target_group_id' => 'required|integer|exists:groups,id',
+        ]);
+
+        if ((int) $data['target_group_id'] === $group->id) {
+            return response(['message' => 'Pick a different group to move this reader to.'], 422);
+        }
+
+        if (! $group->readers()->whereKey($data['reader_id'])->exists()) {
+            return response(['message' => 'That reader is not in this group.'], 422);
+        }
+
+        DB::transaction(function () use ($group, $data) {
+            $target = Group::findOrFail($data['target_group_id']);
+
+            $group->readers()->detach($data['reader_id']);
+            $target->readers()->syncWithoutDetaching([$data['reader_id']]);
+        });
+
+        return response([
+            'group' => Group::withCount('readers')->findOrFail($group->id),
+            'target' => Group::withCount('readers')->findOrFail($data['target_group_id']),
+        ]);
+    }
+
+    /**
      * Create the requested number of groups and randomly distribute all
      * readers across them.
      */

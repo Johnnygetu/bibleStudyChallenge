@@ -1,5 +1,5 @@
 import { Users, TrendingUp, HelpCircle, Flame, AlertTriangle, BookOpen } from 'lucide-react';
-import { Avatar } from '@/components/ui';
+import { Avatar, Skeleton, ReaderSkeletonList } from '@/components/ui';
 import { useDashboardContext } from '@/context/DashboardContext';
 
 export default function Dashboard({ onNavigate }) {
@@ -7,8 +7,28 @@ export default function Dashboard({ onNavigate }) {
 
   if (loading || !stats) {
     return (
-      <div className="page-loader">
-        <div className="spinner" />
+      <div className="page stack-lg" aria-hidden="true">
+        {/* Week banner */}
+        <Skeleton className="sk-banner" />
+
+        {/* Stat cards */}
+        <div className="grid-2">
+          <Skeleton className="sk-stat-wide" />
+          <Skeleton className="sk-stat" />
+          <Skeleton className="sk-stat" />
+        </div>
+
+        {/* On track vs falling behind */}
+        <div className="grid-2">
+          <Skeleton className="sk-mini" />
+          <Skeleton className="sk-mini" />
+        </div>
+
+        {/* Recent readers */}
+        <div>
+          <div className="sk-line sk-heading" />
+          <ReaderSkeletonList count={3} />
+        </div>
       </div>
     );
   }

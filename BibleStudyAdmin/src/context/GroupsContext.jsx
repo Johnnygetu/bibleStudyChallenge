@@ -111,6 +111,25 @@ export function GroupsProvider({ children }) {
     }
   }, []);
 
+  // Move a reader from the open group to another group, then refresh
+  // both the list counts and the open detail view.
+  const swapMember = useCallback(async ({ groupId, readerId, targetGroupId }) => {
+    const response = await fetch(`${API_URL}/groups/${groupId}/swap`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ reader_id: readerId, target_group_id: targetGroupId }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.message || `The server responded with ${response.status}.`);
+    }
+    await reload();
+    await openGroup(groupId);
+  }, [reload, openGroup]);
+
   const closeGroup = useCallback(() => {
     setSelectedId(null);
     setGroupDetail(null);
@@ -124,6 +143,7 @@ export function GroupsProvider({ children }) {
     reload,
     addGroup,
     assignMembers,
+    swapMember,
     deleteGroup,
     selectedId,
     groupDetail,

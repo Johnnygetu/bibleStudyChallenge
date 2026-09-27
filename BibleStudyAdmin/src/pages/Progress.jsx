@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Flame, CheckCircle2, ChevronDown, ChevronRight, Calendar, TrendingUp, AlertTriangle } from 'lucide-react';
-import { Avatar, ProgressBar } from '@/components/ui';
+import { Avatar, ProgressBar, ReaderSkeletonList } from '@/components/ui';
 import { useProgressContext } from '@/context/ProgressContext';
 
 export default function Progress() {
@@ -13,14 +13,6 @@ export default function Progress() {
     if (view === 'behind') return d.missedDays > 2 && d.reader.status === 'active';
     return true;
   });
-
-  if (loading) {
-    return (
-      <div className="page-loader">
-        <div className="spinner" />
-      </div>
-    );
-  }
 
   const views = [
     { id: 'all', label: 'All Readers', icon: Calendar },
@@ -53,7 +45,9 @@ export default function Progress() {
       </div>
 
       {/* Progress list */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <ReaderSkeletonList count={5} />
+      ) : filtered.length === 0 ? (
         <div className="empty-block">
           <div className="empty-circle empty-circle-soft">
             <TrendingUp className="icon-32 empty-glyph" />

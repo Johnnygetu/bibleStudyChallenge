@@ -53,20 +53,18 @@ export default function Quizzes() {
     bookMap.get(chapter).push(q);
   });
 
-  if (loading) {
-    return (
-      <div className="page-loader">
-        <div className="spinner" />
-      </div>
-    );
-  }
-
   return (
     <div className="page stack fade-in">
       <div className="page-head">
         <div>
           <h2 className="page-title serif">Quiz Questions</h2>
-          <p className="page-sub">{questions.length} questions across {grouped.size} books</p>
+          <p className="page-sub">
+            {loading ? (
+              <span className="sk-line sk-sub" />
+            ) : (
+              `${questions.length} questions across ${grouped.size} books`
+            )}
+          </p>
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -78,7 +76,9 @@ export default function Quizzes() {
       </div>
 
       {/* Questions grouped by book and chapter */}
-      {error ? (
+      {loading ? (
+        <BookSkeletonList />
+      ) : error ? (
         <ErrorState message={error} onRetry={reload} />
       ) : grouped.size === 0 ? (
         <div className="empty-block">
@@ -219,6 +219,23 @@ export default function Quizzes() {
 
       {showForm && <QuestionForm onClose={() => setShowForm(false)} />}
       {editing && <QuestionForm question={editing} onClose={() => setEditing(null)} />}
+    </div>
+  );
+}
+
+function BookSkeletonList() {
+  return (
+    <div className="list-tight" aria-hidden="true">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="card row sk-row">
+          <div className="sk-square" />
+          <div className="row-main">
+            <div className="sk-line sk-line-name" />
+            <div className="sk-line sk-line-meta" />
+          </div>
+          <div className="sk-badge" />
+        </div>
+      ))}
     </div>
   );
 }
