@@ -3,7 +3,7 @@ import { Avatar, Skeleton, ReaderSkeletonList, ErrorState } from '@/components/u
 import { useDashboardContext } from '@/context/DashboardContext';
 
 export default function Dashboard({ onNavigate }) {
-  const { stats, currentWeek, recentReaders, loading, error, reload } = useDashboardContext();
+  const { stats, currentWeek, totalWeeks, recentReaders, loading, error, reload } = useDashboardContext();
 
   if (error) {
     return (
@@ -57,16 +57,18 @@ export default function Dashboard({ onNavigate }) {
           <p className="week-eyebrow">Current Week</p>
           <div className="week-heading">
             <span className="week-number serif">Week {currentWeek}</span>
-            <span className="week-total">of 26</span>
+            <span className="week-total">of {totalWeeks}</span>
           </div>
           <div className="week-progress">
             <div className="week-track">
               <div
                 className="week-fill"
-                style={{ width: `${(currentWeek / 26) * 100}%` }}
+                style={{ width: `${(currentWeek / totalWeeks) * 100}%` }}
               />
             </div>
-            <span className="week-pct">{Math.round((currentWeek / 26) * 100)}%</span>
+            <span className="week-pct">
+              {Math.round((currentWeek / totalWeeks) * 100)}%
+            </span>
           </div>
         </div>
       </div>

@@ -35,6 +35,7 @@ export function QuestionsProvider({ children }) {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -105,7 +106,11 @@ export function QuestionsProvider({ children }) {
     await reload();
   }, [reload]);
 
+  // Delete one question. The id is exposed as `deletingId` so the row can
+  // show a pending state until the server confirms and the list refetches.
   const deleteQuestion = useCallback(async (id) => {
+    if (deletingId !== null) return;
+    setDeletingId(id);
     try {
       const response = await fetch(`${API_URL}/questions/${id}`, {
         method: 'DELETE',
@@ -117,10 +122,12 @@ export function QuestionsProvider({ children }) {
       await reload();
     } catch (err) {
       console.error('Failed to delete question:', err);
+    } finally {
+      setDeletingId(null);
     }
-  }, [reload]);
+  }, [reload, deletingId]);
 
-  const value = { questions, loading, error, reload, addQuestion, updateQuestion, deleteQuestion };
+  const value = { questions, loading, error, deletingId, reload, addQuestion, updateQuestion, deleteQuestion };
 
   return <QuestionsContext.Provider value={value}>{children}</QuestionsContext.Provider>;
 }

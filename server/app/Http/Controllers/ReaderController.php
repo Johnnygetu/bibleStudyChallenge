@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\Plan;
 use App\Models\Reader;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReaderController extends Controller
 {
@@ -18,9 +19,10 @@ class ReaderController extends Controller
     {
         $data = $request->validate([
             'phone_number' => 'required|string',
-            'name'         => 'required|string',
-            'chat_id'      => 'required|unique:readers,chat_id',
+            'name' => 'required|string',
+            'chat_id' => 'required|unique:readers,chat_id',
         ]);
+
         return response(Reader::create($data), 201);
     }
 
@@ -33,86 +35,18 @@ class ReaderController extends Controller
     {
         $data = $request->validate([
             'phone_number' => 'sometimes|string',
-            'name'         => 'sometimes|string',
-            'chat_id'      => 'sometimes|unique:readers,chat_id,' . $reader->id,
+            'name' => 'sometimes|string',
+            'chat_id' => 'sometimes|unique:readers,chat_id,'.$reader->id,
         ]);
+
         return $reader->update($data) ? $reader : response(['message' => 'Update failed'], 500);
     }
 
     public function destroy(Reader $reader)
     {
         $reader->delete();
+
         return response(null, 204);
-    }
-
-    /**
-     * Shared helper to calculate a reader's exact lag status against the plan schedule.
-     */
-    private function calculateLagData(Reader $reader, Plan $plan, $includeToday = true)
-    {
-        $query = $reader->studyDays()->latest('id');
-        if (!$includeToday) {
-            $query->whereDate('created_at', '<', today());
-        }
-        $lastStudy = $query->first();
-        $actualOrderId = 0;
-
-        if ($lastStudy) {
-            $lastOrder = Order::where('plan_id', $plan->id)
-                ->where('chapter_id', $lastStudy->last_studied_chapter_id)
-                ->first();
-
-            if ($lastOrder) {
-                $actualOrderId = $lastOrder->id;
-            }
-        }
-
-        $daysElapsed = $plan->starting_day->startOfDay()->diffInDays(now()->startOfDay()) + 1;
-
-        if ($daysElapsed < 1) {
-            return [
-                'is_lagging' => false,
-                'current_day_number' => 0,
-                'actual_order_id' => $actualOrderId,
-                'lagging_chapters' => 0,
-                'lagging_verses' => 0,
-            ];
-        }
-
-        $schedule = $plan->getSchedule();
-        $targetDayIndex = min($daysElapsed - 1, count($schedule) - 1);
-        $targetDayData = $schedule[$targetDayIndex];
-        
-        $targetChapters = $targetDayData['chapters'];
-        $targetOrderId = end($targetChapters)['order_id'];
-
-        if ($actualOrderId >= $targetOrderId) {
-            return [
-                'is_lagging' => false,
-                'current_day_number' => $daysElapsed,
-                'target_day_number' => $targetDayData['day'],
-                'actual_order_id' => $actualOrderId,
-                'target_order_id' => $targetOrderId,
-                'lagging_chapters' => 0,
-                'lagging_verses' => 0,
-            ];
-        }
-
-        $missedOrders = Order::where('plan_id', $plan->id)
-            ->where('id', '>', $actualOrderId)
-            ->where('id', '<=', $targetOrderId)
-            ->with('chapter')
-            ->get();
-
-        return [
-            'is_lagging' => true,
-            'current_day_number' => $daysElapsed,
-            'target_day_number' => $targetDayData['day'],
-            'actual_order_id' => $actualOrderId,
-            'target_order_id' => $targetOrderId,
-            'lagging_chapters' => $missedOrders->count(),
-            'lagging_verses' => $missedOrders->sum(fn ($o) => $o->chapter->num_verses),
-        ];
     }
 
     /**
@@ -128,7 +62,7 @@ class ReaderController extends Controller
 
         // Calculate lag based on yesterday's progress. This ensures the daily readings
         // stay perfectly fixed for the entire calendar day, even if they save progress.
-        $lagData = $this->calculateLagData($reader, $plan, false);
+        $lagData = $plan->lagFor($reader, false);
 
         // 30-day Tolerance Logic
         if ($lagData['is_lagging']) {
@@ -139,10 +73,10 @@ class ReaderController extends Controller
             if ($lagData['lagging_verses'] > $maxToleranceVerses) {
                 $excessVerses = $lagData['lagging_verses'] - $maxToleranceVerses;
                 $totalPlanDays = count($plan->getSchedule());
-                
+
                 // Calculate remaining days until absolute deadline
                 $remainingDays = max(1, ($totalPlanDays + $toleranceDays) - $lagData['current_day_number'] + 1);
-                
+
                 $extraVersesAdded = (int) ceil($excessVerses / $remainingDays);
                 $dynamicLimit = $baseLimit + $extraVersesAdded;
                 $isCatchUpMode = true;
@@ -170,24 +104,24 @@ class ReaderController extends Controller
             ->get();
 
         $versesUsed = 0;
-        $readings   = [];
+        $readings = [];
 
         foreach ($upcoming as $order) {
-            $chapter    = $order->chapter;
+            $chapter = $order->chapter;
             $verseCount = $chapter->num_verses;
 
             $readings[] = [
-                'order_id'       => $order->id,
-                'chapter_id'     => $chapter->id,
-                'book'           => $chapter->book,
+                'order_id' => $order->id,
+                'chapter_id' => $chapter->id,
+                'book' => $chapter->book,
                 'chapter_number' => $chapter->chapter_number,
-                'num_verses'     => $verseCount,
-                'is_completed'   => $order->id <= $currentOrderId,
+                'num_verses' => $verseCount,
+                'is_completed' => $order->id <= $currentOrderId,
             ];
 
             $versesUsed += $verseCount;
 
-            // Option B rule: Finish the chapter! 
+            // Option B rule: Finish the chapter!
             // We add the chapter first, then if we hit/passed the limit, we stop.
             if ($versesUsed >= $dynamicLimit) {
                 break;
@@ -195,15 +129,15 @@ class ReaderController extends Controller
         }
 
         return response([
-            'reader_id'           => $reader->id,
-            'plan_id'             => $plan->id,
-            'base_verse_limit'    => $baseLimit,
+            'reader_id' => $reader->id,
+            'plan_id' => $plan->id,
+            'base_verse_limit' => $baseLimit,
             'dynamic_verse_limit' => $dynamicLimit,
-            'is_catch_up_mode'    => $isCatchUpMode,
-            'extra_verses_added'  => $extraVersesAdded,
-            'verses_assigned'     => $versesUsed,
-            'chapters_count'      => count($readings),
-            'readings'            => $readings,
+            'is_catch_up_mode' => $isCatchUpMode,
+            'extra_verses_added' => $extraVersesAdded,
+            'verses_assigned' => $versesUsed,
+            'chapters_count' => count($readings),
+            'readings' => $readings,
         ]);
     }
 
@@ -212,11 +146,11 @@ class ReaderController extends Controller
      */
     public function lagStatus(Reader $reader, Plan $plan)
     {
-        $lagData = $this->calculateLagData($reader, $plan);
-        $lagData['message'] = $lagData['is_lagging'] 
-            ? 'You are lagging behind the schedule.' 
+        $lagData = $plan->lagFor($reader);
+        $lagData['message'] = $lagData['is_lagging']
+            ? 'You are lagging behind the schedule.'
             : 'You are on track or ahead of schedule!';
-            
+
         return response()->json($lagData);
     }
 
@@ -234,7 +168,21 @@ class ReaderController extends Controller
         if ($studyDay) {
             $studyDay->update(['last_studied_chapter_id' => $data['chapter_id']]);
         } else {
-            $studyDay = $reader->studyDays()->create(['last_studied_chapter_id' => $data['chapter_id']]);
+            // A new reading day: record it and register the streak by
+            // adding 1 to the last streak registered for this reader.
+            $studyDay = DB::transaction(function () use ($reader, $data) {
+                $studyDay = $reader->studyDays()->create(['last_studied_chapter_id' => $data['chapter_id']]);
+
+                $lastStreak = $reader->streaks()->latest('id')->first();
+
+                if ($lastStreak) {
+                    $lastStreak->increment('count');
+                } else {
+                    $reader->streaks()->create(['count' => 1]);
+                }
+
+                return $studyDay;
+            });
         }
 
         return response()->json(['message' => 'Progress saved successfully.', 'study_day' => $studyDay]);

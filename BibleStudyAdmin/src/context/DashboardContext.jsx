@@ -11,6 +11,7 @@ export const DashboardContext = createContext(null);
 export function DashboardProvider({ children }) {
   const [stats, setStats] = useState(null);
   const [currentWeek, setCurrentWeek] = useState(1);
+  const [totalWeeks, setTotalWeeks] = useState(26);
   const [recentReaders, setRecentReaders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -33,12 +34,20 @@ export function DashboardProvider({ children }) {
       const onTrack = active.filter((r) => r.current_streak >= 3).length;
       const fallingBehind = active.filter((r) => r.current_streak === 0).length;
 
-      const today = new Date();
-      const startDate = new Date('2026-09-21');
-      const daysDiff = Math.floor(
-        (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-      );
-      setCurrentWeek(Math.max(1, Math.min(26, Math.floor(daysDiff / 7) + 1)));
+      // The week banner comes from the reading plan on the server; fall
+      // back to the old date-based estimate when no plan exists yet.
+      if (data.total_weeks) {
+        setCurrentWeek(data.current_week);
+        setTotalWeeks(data.total_weeks);
+      } else {
+        const today = new Date();
+        const startDate = new Date('2026-09-21');
+        const daysDiff = Math.floor(
+          (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        setCurrentWeek(Math.max(1, Math.min(26, Math.floor(daysDiff / 7) + 1)));
+        setTotalWeeks(26);
+      }
 
       setStats({
         totalReaders: data.total_readers,
@@ -60,7 +69,7 @@ export function DashboardProvider({ children }) {
     reload();
   }, [reload]);
 
-  const value = { stats, currentWeek, recentReaders, loading, error, reload };
+  const value = { stats, currentWeek, totalWeeks, recentReaders, loading, error, reload };
 
   return <DashboardContext.Provider value={value}>{children}</DashboardContext.Provider>;
 }
