@@ -1520,6 +1520,23 @@ img.avatar {
   color: var(--danger-500);
 }
 
+.q-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex-shrink: 0;
+}
+
+.q-edit:hover {
+  background: rgba(3, 59, 92, 0.08);
+  color: var(--primary-300);
+}
+
+.input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .q-options {
   margin-top: 0.625rem;
 }

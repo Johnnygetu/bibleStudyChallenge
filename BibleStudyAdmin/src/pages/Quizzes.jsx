@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, X, HelpCircle, ChevronDown, ChevronRight, Trash2, BookOpen, Check, AlertCircle } from 'lucide-react';
+import { Plus, X, Edit2, HelpCircle, ChevronDown, ChevronRight, Trash2, BookOpen, Check, AlertCircle } from 'lucide-react';
+import { ErrorState } from '@/components/ui';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 const BIBLE_BOOKS = {
   "Genesis": 50, "Exodus": 40, "Leviticus": 27, "Numbers": 36, "Deuteronomy": 34,
@@ -18,24 +21,58 @@ const BIBLE_BOOKS = {
   "3 John": 1, "Jude": 1, "Revelation": 22
 };
 
+const LETTERS = ['a', 'b', 'c', 'd'];
+
+// The API nests the chapter and answers; flatten them into the shape the
+// book/chapter grouping and option rendering below already expect.
+function toQuestion(row) {
+  const answers = Array.isArray(row.answers) ? row.answers : [];
+  const correctIndex = answers.findIndex((a) => a.correct_answer);
+
+  const mapped = {
+    id: row.id,
+    book: row.chapter?.book || 'Unknown Book',
+    chapter: row.chapter?.chapter_number || 1,
+    question_text: row.question_text,
+    bible_reference: row.bible_reference || null,
+    created_at: row.created_at,
+    correct_option: correctIndex >= 0 ? LETTERS[correctIndex] : null,
+  };
+
+  LETTERS.forEach((letter, index) => {
+    mapped[`option_${letter}`] = answers[index]?.answer_text || '';
+  });
+
+  return mapped;
+}
+
 export default function Quizzes() {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [expandedBook, setExpandedBook] = useState(null);
   const [expandedChapter, setExpandedChapter] = useState(null);
+  const [editing, setEditing] = useState(null);
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const stored = localStorage.getItem('dummy_quizzes');
-      const data = stored ? JSON.parse(stored) : [];
+      const response = await fetch(`${API_URL}/questions`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) {
+        throw new Error(`The server responded with ${response.status}.`);
+      }
+      const rows = await response.json();
+      const mapped = (Array.isArray(rows) ? rows : []).map(toQuestion);
       // Sort descending by created_at
-      data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      setQuestions(data);
+      mapped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setQuestions(mapped);
     } catch (err) {
-      console.error(err);
-      setQuestions([]);
+      console.error('Failed to load questions:', err);
+      setError('We could not reach the server. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -71,10 +108,19 @@ export default function Quizzes() {
     bookMap.get(chapter).push(q);
   });
 
-  function deleteQuestion(id) {
-    const updated = questions.filter(q => q.id !== id);
-    localStorage.setItem('dummy_quizzes', JSON.stringify(updated));
-    load();
+  async function deleteQuestion(id) {
+    try {
+      const response = await fetch(`${API_URL}/questions/${id}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) {
+        throw new Error(`The server responded with ${response.status}.`);
+      }
+      load();
+    } catch (err) {
+      console.error('Failed to delete question:', err);
+    }
   }
 
   if (loading) {
@@ -102,7 +148,9 @@ export default function Quizzes() {
       </div>
 
       {/* Questions grouped by book and chapter */}
-      {grouped.size === 0 ? (
+      {error ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : grouped.size === 0 ? (
         <div className="empty-block">
           <div className="empty-circle">
             <HelpCircle className="icon-32 empty-glyph" />
@@ -183,12 +231,22 @@ export default function Quizzes() {
                                     <div key={q.id} className="q-card">
                                       <div className="q-head">
                                         <p className="q-text">{q.question_text}</p>
-                                        <button
-                                          onClick={() => deleteQuestion(q.id)}
-                                          className="q-del"
-                                        >
-                                          <Trash2 className="icon-14" />
-                                        </button>
+                                        <div className="q-actions">
+                                          <button
+                                            onClick={() => setEditing(q)}
+                                            className="q-del q-edit"
+                                            aria-label="Edit question"
+                                          >
+                                            <Edit2 className="icon-14" />
+                                          </button>
+                                          <button
+                                            onClick={() => deleteQuestion(q.id)}
+                                            className="q-del"
+                                            aria-label="Delete question"
+                                          >
+                                            <Trash2 className="icon-14" />
+                                          </button>
+                                        </div>
                                       </div>
                                       <div className="q-options">
                                         {['a', 'b', 'c', 'd'].map((opt) => {
@@ -230,54 +288,67 @@ export default function Quizzes() {
       )}
 
       {showForm && <QuestionForm onClose={() => setShowForm(false)} onSaved={load} />}
+      {editing && <QuestionForm question={editing} onClose={() => setEditing(null)} onSaved={load} />}
     </div>
   );
 }
 
-function QuestionForm({ onClose, onSaved }) {
-  const [book, setBook] = useState('Genesis');
-  const [chapter, setChapter] = useState(1);
-  const [question, setQuestion] = useState('');
-  const [options, setOptions] = useState({ a: '', b: '', c: '', d: '' });
-  const [correct, setCorrect] = useState('a');
-  const [reference, setReference] = useState('');
+function QuestionForm({ question, onClose, onSaved }) {
+  const isEdit = Boolean(question);
+  const [book, setBook] = useState(question?.book || 'Genesis');
+  const [chapter, setChapter] = useState(question?.chapter || 1);
+  const [questionText, setQuestionText] = useState(question?.question_text || '');
+  const [options, setOptions] = useState({
+    a: question?.option_a || '',
+    b: question?.option_b || '',
+    c: question?.option_c || '',
+    d: question?.option_d || '',
+  });
+  const [correct, setCorrect] = useState(question?.correct_option || 'a');
+  const [reference, setReference] = useState(question?.bible_reference || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  function save() {
-    if (!book.trim() || !question.trim() || !options.a.trim() || !options.b.trim() || !options.c.trim() || !options.d.trim()) {
+  async function save() {
+    if (!book.trim() || !questionText.trim() || !options.a.trim() || !options.b.trim() || !options.c.trim() || !options.d.trim()) {
       setError('Please fill in the book, question, and all four options.');
       return;
     }
     setSaving(true);
+    setError('');
 
     try {
-      const stored = localStorage.getItem('dummy_quizzes');
-      const currentQuestions = stored ? JSON.parse(stored) : [];
+      const response = await fetch(isEdit ? `${API_URL}/questions/${question.id}` : `${API_URL}/questions`, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          book: book.trim(),
+          chapter: chapter,
+          question_text: questionText.trim(),
+          options: {
+            a: options.a.trim(),
+            b: options.b.trim(),
+            c: options.c.trim(),
+            d: options.d.trim(),
+          },
+          correct_option: correct,
+          bible_reference: reference.trim() || null,
+        }),
+      });
 
-      const newQuestion = {
-        id: crypto.randomUUID(),
-        book: book.trim(),
-        chapter: chapter,
-        week_number: 1, // keeping dummy value
-        question_text: question.trim(),
-        option_a: options.a.trim(),
-        option_b: options.b.trim(),
-        option_c: options.c.trim(),
-        option_d: options.d.trim(),
-        correct_option: correct,
-        bible_reference: reference.trim() || null,
-        created_at: new Date().toISOString(),
-      };
-
-      currentQuestions.push(newQuestion);
-      localStorage.setItem('dummy_quizzes', JSON.stringify(currentQuestions));
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.message || `The server responded with ${response.status}.`);
+      }
 
       onSaved();
       onClose();
     } catch (err) {
-      console.error(err);
-      setError('Failed to save locally.');
+      console.error('Failed to save question:', err);
+      setError(err.message || 'Failed to save the question.');
     } finally {
       setSaving(false);
     }
@@ -290,7 +361,7 @@ function QuestionForm({ onClose, onSaved }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-head">
-          <h3 className="modal-title serif">New Quiz Question</h3>
+          <h3 className="modal-title serif">{isEdit ? 'Edit Question' : 'New Quiz Question'}</h3>
           <button onClick={onClose} className="btn-ghost">
             <X className="icon-20" />
           </button>
@@ -314,6 +385,7 @@ function QuestionForm({ onClose, onSaved }) {
                   setChapter(1);
                 }}
                 className="input"
+                disabled={isEdit}
               >
                 {Object.keys(BIBLE_BOOKS).map((b) => (
                   <option key={b} value={b}>{b}</option>
@@ -326,6 +398,7 @@ function QuestionForm({ onClose, onSaved }) {
                 value={chapter}
                 onChange={(e) => setChapter(Number(e.target.value))}
                 className="input"
+                disabled={isEdit}
               >
                 {Array.from({ length: BIBLE_BOOKS[book] || 1 }, (_, i) => i + 1).map((c) => (
                   <option key={c} value={c}>{c}</option>
@@ -337,8 +410,8 @@ function QuestionForm({ onClose, onSaved }) {
           <div>
             <label className="field-label">Question *</label>
             <textarea
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
+              value={questionText}
+              onChange={(e) => setQuestionText(e.target.value)}
               placeholder="e.g. What did God create on the first day?"
               rows={2}
               className="input textarea resize-none"
@@ -387,7 +460,7 @@ function QuestionForm({ onClose, onSaved }) {
           disabled={saving}
           className="btn-primary btn-block btn-save"
         >
-          {saving ? 'Saving...' : 'Add Question'}
+          {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Question'}
         </button>
       </div>
     </div>
