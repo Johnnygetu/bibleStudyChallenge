@@ -1,8 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, X, HelpCircle, ChevronDown, ChevronRight, Trash2, BookOpen, Check, AlertCircle } from 'lucide-react';
-import type { QuizQuestion } from '@/lib/types';
 
-const BIBLE_BOOKS: Record<string, number> = {
+const BIBLE_BOOKS = {
   "Genesis": 50, "Exodus": 40, "Leviticus": 27, "Numbers": 36, "Deuteronomy": 34,
   "Joshua": 24, "Judges": 21, "Ruth": 4, "1 Samuel": 31, "2 Samuel": 24,
   "1 Kings": 22, "2 Kings": 25, "1 Chronicles": 29, "2 Chronicles": 36, "Ezra": 10,
@@ -20,17 +19,17 @@ const BIBLE_BOOKS: Record<string, number> = {
 };
 
 export default function Quizzes() {
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [expandedBook, setExpandedBook] = useState<string | null>(null);
-  const [expandedChapter, setExpandedChapter] = useState<{book: string, chapter: number} | null>(null);
+  const [expandedBook, setExpandedBook] = useState(null);
+  const [expandedChapter, setExpandedChapter] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
     try {
       const stored = localStorage.getItem('dummy_quizzes');
-      const data: QuizQuestion[] = stored ? JSON.parse(stored) : [];
+      const data = stored ? JSON.parse(stored) : [];
       // Sort descending by created_at
       data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       setQuestions(data);
@@ -46,11 +45,11 @@ export default function Quizzes() {
     load();
   }, [load]);
 
-  const grouped = new Map<string, Map<number, QuizQuestion[]>>();
-  
+  const grouped = new Map();
+
   // Initialize grouped with all books and chapters
   Object.entries(BIBLE_BOOKS).forEach(([book, totalChapters]) => {
-    const chaptersMap = new Map<number, QuizQuestion[]>();
+    const chaptersMap = new Map();
     for (let i = 1; i <= totalChapters; i++) {
       chaptersMap.set(i, []);
     }
@@ -60,19 +59,19 @@ export default function Quizzes() {
   questions.forEach((q) => {
     const book = q.book || 'Unknown Book';
     const chapter = q.chapter || 1;
-    
+
     if (!grouped.has(book)) {
       grouped.set(book, new Map());
     }
-    const bookMap = grouped.get(book)!;
-    
+    const bookMap = grouped.get(book);
+
     if (!bookMap.has(chapter)) {
       bookMap.set(chapter, []);
     }
-    bookMap.get(chapter)!.push(q);
+    bookMap.get(chapter).push(q);
   });
 
-  function deleteQuestion(id: string) {
+  function deleteQuestion(id) {
     const updated = questions.filter(q => q.id !== id);
     localStorage.setItem('dummy_quizzes', JSON.stringify(updated));
     load();
@@ -80,39 +79,39 @@ export default function Quizzes() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+      <div className="page-loader">
+        <div className="spinner" />
       </div>
     );
   }
 
   return (
-    <div className="px-5 py-5 space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="page stack fade-in">
+      <div className="page-head">
         <div>
-          <h2 className="text-xl font-bold font-serif text-ink-100">Quiz Questions</h2>
-          <p className="text-xs text-ink-400">{questions.length} questions across {grouped.size} books</p>
+          <h2 className="page-title serif">Quiz Questions</h2>
+          <p className="page-sub">{questions.length} questions across {grouped.size} books</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="btn-primary flex items-center gap-1.5 px-4 py-2.5 text-sm"
+          className="btn-primary btn-compact"
         >
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
+          <Plus className="icon-16" strokeWidth={2.5} />
           Add
         </button>
       </div>
 
       {/* Questions grouped by book and chapter */}
       {grouped.size === 0 ? (
-        <div className="text-center py-16">
-          <div className="w-16 h-16 rounded-full bg-ink-800 flex items-center justify-center mx-auto mb-4">
-            <HelpCircle className="w-8 h-8 text-ink-400" />
+        <div className="empty-block">
+          <div className="empty-circle">
+            <HelpCircle className="icon-32 empty-glyph" />
           </div>
-          <p className="text-ink-300 text-sm font-medium">No quiz questions yet</p>
-          <p className="text-ink-400 text-xs mt-1">Tap Add to create your first question</p>
+          <p className="empty-title">No quiz questions yet</p>
+          <p className="empty-sub">Tap Add to create your first question</p>
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div className="list-tight">
           {Array.from(grouped.entries())
             .sort((a, b) => {
               const indexA = Object.keys(BIBLE_BOOKS).indexOf(a[0]);
@@ -126,98 +125,92 @@ export default function Quizzes() {
               const isBookExpanded = expandedBook === book;
               let totalQuestions = 0;
               chaptersMap.forEach((qs) => totalQuestions += qs.length);
-              
+
               return (
                 <div key={book} className="card overflow-hidden">
                   <button
                     onClick={() => setExpandedBook(isBookExpanded ? null : book)}
-                    className="w-full p-3.5 flex items-center gap-3 hover:bg-ink-800/50 transition-colors"
+                    className="book-btn"
                   >
-                    <div className="w-10 h-10 rounded-xl bg-primary-400/10 flex items-center justify-center shrink-0">
-                      <BookOpen className="w-5 h-5 text-primary-500" />
+                    <div className="book-icon">
+                      <BookOpen className="icon-20 book-glyph" />
                     </div>
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-bold text-ink-100">{book}</p>
-                      <p className="text-xs text-ink-400">
+                    <div className="book-main">
+                      <p className="book-name">{book}</p>
+                      <p className="book-meta">
                         {chaptersMap.size} chapter{chaptersMap.size !== 1 ? 's' : ''} · {totalQuestions} question{totalQuestions !== 1 ? 's' : ''}
                       </p>
                     </div>
                     {isBookExpanded ? (
-                      <ChevronDown className="w-4 h-4 text-ink-400" />
+                      <ChevronDown className="icon-16 book-chevron" />
                     ) : (
-                      <ChevronRight className="w-4 h-4 text-ink-400" />
+                      <ChevronRight className="icon-16 book-chevron" />
                     )}
                   </button>
 
                   {isBookExpanded && (
-                    <div className="border-t border-ink-700/50">
+                    <div className="chapter-list">
                       {Array.from(chaptersMap.entries())
                         .sort((a, b) => a[0] - b[0])
                         .map(([chapter, qs]) => {
                           const isChapterExpanded = expandedChapter?.book === book && expandedChapter?.chapter === chapter;
-                          
+
                           return (
-                            <div key={chapter} className="border-b border-ink-700/30 last:border-0">
+                            <div key={chapter} className="chapter-item">
                               <button
                                 onClick={() => setExpandedChapter(isChapterExpanded ? null : { book, chapter })}
-                                className="w-full px-4 py-3 flex items-center justify-between hover:bg-ink-800/30 transition-colors"
+                                className="chapter-btn"
                               >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-semibold text-ink-200">Chapter {chapter}</span>
-                                  <span className="text-xs text-ink-400">({qs.length})</span>
+                                <div className="chapter-summary">
+                                  <span className="chapter-name">Chapter {chapter}</span>
+                                  <span className="chapter-count">({qs.length})</span>
                                 </div>
                                 {isChapterExpanded ? (
-                                  <ChevronDown className="w-3.5 h-3.5 text-ink-400" />
+                                  <ChevronDown className="icon-14 book-chevron" />
                                 ) : (
-                                  <ChevronRight className="w-3.5 h-3.5 text-ink-400" />
+                                  <ChevronRight className="icon-14 book-chevron" />
                                 )}
                               </button>
-                              
+
                               {isChapterExpanded && (
-                                <div className="px-4 pb-4 pt-1 space-y-2.5">
+                                <div className="chapter-body">
                                   {qs.length === 0 ? (
-                                    <div className="bg-ink-800/50 rounded-xl p-6 text-center border border-ink-700/50 border-dashed">
-                                      <p className="text-sm text-ink-300 font-medium">No questions yet</p>
-                                      <p className="text-xs text-ink-400 mt-1">Click Add to create the first question for this chapter</p>
+                                    <div className="q-empty">
+                                      <p className="q-empty-title">No questions yet</p>
+                                      <p className="q-empty-sub">Click Add to create the first question for this chapter</p>
                                     </div>
                                   ) : qs.map((q) => (
-                                    <div key={q.id} className="bg-ink-800 rounded-xl p-3.5">
-                                      <div className="flex items-start justify-between gap-2">
-                                        <p className="text-sm font-semibold text-ink-100 flex-1">{q.question_text}</p>
+                                    <div key={q.id} className="q-card">
+                                      <div className="q-head">
+                                        <p className="q-text">{q.question_text}</p>
                                         <button
                                           onClick={() => deleteQuestion(q.id)}
-                                          className="p-1.5 rounded-lg hover:bg-danger-500/10 text-ink-400 hover:text-danger-500 shrink-0"
+                                          className="q-del"
                                         >
-                                          <Trash2 className="w-3.5 h-3.5" />
+                                          <Trash2 className="icon-14" />
                                         </button>
                                       </div>
-                                      <div className="mt-2.5 space-y-1.5">
-                                        {(['a', 'b', 'c', 'd'] as const).map((opt) => {
-                                          const text = q[`option_${opt}` as keyof QuizQuestion] as string;
+                                      <div className="q-options">
+                                        {['a', 'b', 'c', 'd'].map((opt) => {
+                                          const text = q[`option_${opt}`];
                                           const isCorrect = q.correct_option === opt;
                                           return (
                                             <div
                                               key={opt}
-                                              className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${
-                                                isCorrect
-                                                  ? 'bg-success-500/10 text-success-600 font-semibold'
-                                                  : 'bg-ink-850 text-ink-400'
-                                              }`}
+                                              className={isCorrect ? 'q-opt correct' : 'q-opt'}
                                             >
-                                              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                                                isCorrect ? 'bg-success-500 text-white' : 'bg-ink-700 text-ink-400'
-                                              }`}>
+                                              <span className={isCorrect ? 'q-badge on' : 'q-badge'}>
                                                 {opt.toUpperCase()}
                                               </span>
-                                              <span className="flex-1">{text}</span>
-                                              {isCorrect && <Check className="w-3.5 h-3.5 text-success-600" />}
+                                              <span className="q-opt-text">{text}</span>
+                                              {isCorrect && <Check className="icon-14 q-opt-check" />}
                                             </div>
                                           );
                                         })}
                                       </div>
                                       {q.bible_reference && (
-                                        <div className="mt-2 flex items-center gap-1.5 text-xs text-ink-500">
-                                          <BookOpen className="w-3 h-3" />
+                                        <div className="q-ref">
+                                          <BookOpen className="icon-12" />
                                           {q.bible_reference}
                                         </div>
                                       )}
@@ -241,12 +234,12 @@ export default function Quizzes() {
   );
 }
 
-function QuestionForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function QuestionForm({ onClose, onSaved }) {
   const [book, setBook] = useState('Genesis');
   const [chapter, setChapter] = useState(1);
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState({ a: '', b: '', c: '', d: '' });
-  const [correct, setCorrect] = useState<'a' | 'b' | 'c' | 'd'>('a');
+  const [correct, setCorrect] = useState('a');
   const [reference, setReference] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -257,12 +250,12 @@ function QuestionForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
       return;
     }
     setSaving(true);
-    
+
     try {
       const stored = localStorage.getItem('dummy_quizzes');
-      const currentQuestions: QuizQuestion[] = stored ? JSON.parse(stored) : [];
-      
-      const newQuestion: QuizQuestion = {
+      const currentQuestions = stored ? JSON.parse(stored) : [];
+
+      const newQuestion = {
         id: crypto.randomUUID(),
         book: book.trim(),
         chapter: chapter,
@@ -276,10 +269,10 @@ function QuestionForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
         bible_reference: reference.trim() || null,
         created_at: new Date().toISOString(),
       };
-      
+
       currentQuestions.push(newQuestion);
       localStorage.setItem('dummy_quizzes', JSON.stringify(currentQuestions));
-      
+
       onSaved();
       onClose();
     } catch (err) {
@@ -291,48 +284,48 @@ function QuestionForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-50/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="modal-overlay fade-in" onClick={onClose}>
       <div
-        className="bg-ink-900 w-full max-w-md rounded-2xl p-6 max-h-[90vh] overflow-y-auto border border-ink-700/50 shadow-2xl animate-scale-in"
+        className="modal scale-in"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold font-serif text-ink-100">New Quiz Question</h3>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-ink-800 text-ink-400">
-            <X className="w-5 h-5" />
+        <div className="modal-head">
+          <h3 className="modal-title serif">New Quiz Question</h3>
+          <button onClick={onClose} className="btn-ghost">
+            <X className="icon-20" />
           </button>
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 bg-danger-500/10 text-danger-500 text-xs font-medium px-3 py-2.5 rounded-xl mb-4">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+          <div className="form-error">
+            <AlertCircle className="icon-16 form-error-icon" />
             {error}
           </div>
         )}
 
-        <div className="space-y-4">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="text-xs font-semibold text-ink-400 mb-1.5 block">Book *</label>
+        <div className="stack">
+          <div className="form-row">
+            <div className="form-col">
+              <label className="field-label">Book *</label>
               <select
                 value={book}
                 onChange={(e) => {
                   setBook(e.target.value);
                   setChapter(1);
                 }}
-                className="w-full bg-ink-850 border border-ink-700/50 rounded-xl px-4 py-3 text-sm text-ink-100 focus:outline-none focus:ring-2 focus:ring-primary-400/50"
+                className="input"
               >
                 {Object.keys(BIBLE_BOOKS).map((b) => (
                   <option key={b} value={b}>{b}</option>
                 ))}
               </select>
             </div>
-            <div className="w-32 shrink-0">
-              <label className="text-xs font-semibold text-ink-400 mb-1.5 block">Chapter *</label>
+            <div className="form-col-narrow">
+              <label className="field-label">Chapter *</label>
               <select
                 value={chapter}
                 onChange={(e) => setChapter(Number(e.target.value))}
-                className="w-full bg-ink-850 border border-ink-700/50 rounded-xl px-4 py-3 text-sm text-ink-100 focus:outline-none focus:ring-2 focus:ring-primary-400/50"
+                className="input"
               >
                 {Array.from({ length: BIBLE_BOOKS[book] || 1 }, (_, i) => i + 1).map((c) => (
                   <option key={c} value={c}>{c}</option>
@@ -342,31 +335,27 @@ function QuestionForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-ink-400 mb-1.5 block">Question *</label>
+            <label className="field-label">Question *</label>
             <textarea
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="e.g. What did God create on the first day?"
               rows={2}
-              className="w-full bg-ink-850 border border-ink-700/50 rounded-xl px-4 py-3 text-sm text-ink-100 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-400/50 focus:border-transparent resize-none"
+              className="input textarea resize-none"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-ink-400 mb-2 block">Answer Options * (tap circle to mark correct)</label>
-            <div className="space-y-2">
-              {(['a', 'b', 'c', 'd'] as const).map((opt) => (
-                <div key={opt} className="flex items-center gap-2.5">
+            <label className="field-label field-label-loose">Answer Options * (tap circle to mark correct)</label>
+            <div className="stack-2">
+              {['a', 'b', 'c', 'd'].map((opt) => (
+                <div key={opt} className="opt-row">
                   <button
                     type="button"
                     onClick={() => setCorrect(opt)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all ${
-                      correct === opt
-                        ? 'bg-success-500 text-white ring-4 ring-success-500/20'
-                        : 'bg-ink-700 text-ink-400'
-                    }`}
+                    className={correct === opt ? 'opt-letter on' : 'opt-letter'}
                   >
-                    {correct === opt && <Check className="w-4 h-4" />}
+                    {correct === opt && <Check className="icon-16" />}
                     {correct !== opt && opt.toUpperCase()}
                   </button>
                   <input
@@ -374,7 +363,7 @@ function QuestionForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
                     value={options[opt]}
                     onChange={(e) => setOptions({ ...options, [opt]: e.target.value })}
                     placeholder={`Option ${opt.toUpperCase()}`}
-                    className="flex-1 bg-ink-850 border border-ink-700/50 rounded-xl px-3.5 py-2.5 text-sm text-ink-100 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-400/50 focus:border-transparent"
+                    className="input input-inline opt-input"
                   />
                 </div>
               ))}
@@ -382,13 +371,13 @@ function QuestionForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-ink-400 mb-1.5 block">Bible Reference (optional)</label>
+            <label className="field-label">Bible Reference (optional)</label>
             <input
               type="text"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
               placeholder="e.g. Genesis 1:3-5"
-              className="w-full bg-ink-850 border border-ink-700/50 rounded-xl px-4 py-3 text-sm text-ink-100 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-400/50 focus:border-transparent"
+              className="input"
             />
           </div>
         </div>
@@ -396,7 +385,7 @@ function QuestionForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
         <button
           onClick={save}
           disabled={saving}
-          className="w-full mt-6 btn-primary py-3.5 text-sm disabled:opacity-50"
+          className="btn-primary btn-block btn-save"
         >
           {saving ? 'Saving...' : 'Add Question'}
         </button>

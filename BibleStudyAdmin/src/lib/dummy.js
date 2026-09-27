@@ -1,6 +1,4 @@
-import type { Reader, QuizQuestion, ReadingSchedule, ReadingProgress, QuizResponse, LeaderboardEntry } from './types';
-
-export const dummyReaders: Reader[] = [
+export const dummyReaders = [
   {
     "id": "r1",
     "name": "Thomas Jackson",
@@ -332,7 +330,7 @@ export const dummyReaders: Reader[] = [
     "created_at": "2026-09-05T19:14:08.604Z"
   }
 ];
-export const dummySchedule: ReadingSchedule[] = [
+export const dummySchedule = [
   {
     "id": "s1",
     "day_number": 1,
@@ -4114,7 +4112,7 @@ export const dummySchedule: ReadingSchedule[] = [
     "release_date": "2027-11-14T00:00:00.000Z"
   }
 ];
-export const dummyProgress: ReadingProgress[] = [
+export const dummyProgress = [
   {
     "id": "p-r2-1",
     "reader_id": "r2",
@@ -7196,7 +7194,7 @@ export const dummyProgress: ReadingProgress[] = [
     "completed_at": "2026-09-19T19:14:08.604Z"
   }
 ];
-export const dummyQuizResponses: QuizResponse[] = [
+export const dummyQuizResponses = [
   {
     "id": "qr-r1-0",
     "reader_id": "r1",
@@ -9751,7 +9749,7 @@ export const dummyQuizResponses: QuizResponse[] = [
   }
 ];
 
-const dummyQuestionsStatic: QuizQuestion[] = [
+const dummyQuestionsStatic = [
   {
     "id": "dummy-1",
     "week_number": 1,
@@ -10664,7 +10662,7 @@ const dummyQuestionsStatic: QuizQuestion[] = [
   }
 ];
 
-export function getDummyQuestions(): QuizQuestion[] {
+export function getDummyQuestions() {
   try {
     const local = JSON.parse(localStorage.getItem('dummy_quizzes') || '[]');
     return [...dummyQuestionsStatic, ...local];
