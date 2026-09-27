@@ -21,7 +21,7 @@ const BIBLE_BOOKS = {
 };
 
 export default function Quizzes() {
-  const { questions, loading, error, reload, deleteQuestion } = useQuestionsContext();
+  const { questions, loading, error, deletingId, reload, deleteQuestion } = useQuestionsContext();
   const [showForm, setShowForm] = useState(false);
   const [expandedBook, setExpandedBook] = useState(null);
   const [expandedChapter, setExpandedChapter] = useState(null);
@@ -158,24 +158,31 @@ export default function Quizzes() {
                                       <p className="q-empty-sub">Click Add to create the first question for this chapter</p>
                                     </div>
                                   ) : qs.map((q) => (
-                                    <div key={q.id} className="q-card">
+                                    <div key={q.id} className={deletingId === q.id ? 'q-card is-removing' : 'q-card'}>
                                       <div className="q-head">
                                         <p className="q-text">{q.question_text}</p>
                                         <div className="q-actions">
-                                          <button
-                                            onClick={() => setEditing(q)}
-                                            className="q-del q-edit"
-                                            aria-label="Edit question"
-                                          >
-                                            <Edit2 className="icon-14" />
-                                          </button>
-                                          <button
-                                            onClick={() => deleteQuestion(q.id)}
-                                            className="q-del"
-                                            aria-label="Delete question"
-                                          >
-                                            <Trash2 className="icon-14" />
-                                          </button>
+                                          {deletingId === q.id ? (
+                                            <span className="q-deleting" role="status">Deleting...</span>
+                                          ) : (
+                                            <>
+                                              <button
+                                                onClick={() => setEditing(q)}
+                                                className="q-del q-edit"
+                                                aria-label="Edit question"
+                                              >
+                                                <Edit2 className="icon-14" />
+                                              </button>
+                                              <button
+                                                onClick={() => deleteQuestion(q.id)}
+                                                className="q-del"
+                                                aria-label="Delete question"
+                                                disabled={deletingId !== null}
+                                              >
+                                                <Trash2 className="icon-14" />
+                                              </button>
+                                            </>
+                                          )}
                                         </div>
                                       </div>
                                       <div className="q-options">
@@ -253,7 +260,9 @@ function QuestionForm({ question, onClose }) {
     d: question?.option_d || '',
   });
   const [correct, setCorrect] = useState(question?.correct_option || 'a');
-  const [reference, setReference] = useState(question?.bible_reference || '');
+  // The reference input was removed from the form. Keep any stored value so
+  // editing a question doesn't wipe it; new questions save null.
+  const reference = question?.bible_reference || '';
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -368,17 +377,6 @@ function QuestionForm({ question, onClose }) {
                 </div>
               ))}
             </div>
-          </div>
-
-          <div>
-            <label className="field-label">Bible Reference (optional)</label>
-            <input
-              type="text"
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="e.g. Genesis 1:3-5"
-              className="input"
-            />
           </div>
         </div>
 

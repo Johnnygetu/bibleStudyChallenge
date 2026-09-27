@@ -1,65 +1,58 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { dummyReaders, dummySchedule, dummyProgress } from '@/lib/dummy';
 
-// Owns the reading-progress data: per-reader completed/missed day figures,
-// currently derived from the dummy schedule and progress sources.
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+
+// Owns the reading-progress data: per-reader days done/missed and streaks,
+// computed on the server from the reading plan's schedule (lag logic) and
+// the reader's study days.
 export const ProgressContext = createContext(null);
 
 export function ProgressProvider({ children }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
-    // Simulate network delay
-    await new Promise(r => setTimeout(r, 500));
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/progress`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) {
+        throw new Error(`The server responded with ${response.status}.`);
+      }
+      const payload = await response.json();
 
-    const allReaders = dummyReaders;
-    const allSchedule = dummySchedule;
-    const allProgress = dummyProgress;
-
-    const scheduleByDay = new Map(allSchedule.map((s) => [s.id, s.day_number]));
-    const progressByReader = new Map();
-    allProgress.forEach((p) => {
-      const arr = progressByReader.get(p.reader_id) || [];
-      arr.push(p);
-      progressByReader.set(p.reader_id, arr);
-    });
-
-    const today = new Date();
-    const startDate = new Date('2026-09-21');
-    const daysElapsed = Math.max(0, Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-
-    const result = allReaders.map((reader) => {
-      const readerProgress = progressByReader.get(reader.id) || [];
-      const completedCount = readerProgress.filter((p) => p.completed).length;
-      const completedDayNumbers = readerProgress
-        .filter((p) => p.completed)
-        .map((p) => scheduleByDay.get(p.schedule_id))
-        .filter((d) => d !== undefined)
-        .sort((a, b) => a - b);
-      const lastCompletedDay = completedDayNumbers.length > 0 ? completedDayNumbers[completedDayNumbers.length - 1] : null;
-      const expectedCount = Math.min(daysElapsed, allSchedule.length);
-      const missedDays = Math.max(0, expectedCount - completedCount);
-
-      return {
-        reader,
-        completedCount,
-        totalCount: allSchedule.length,
-        lastCompletedDay,
-        missedDays,
-      };
-    });
-
-    setData(result);
-    setLoading(false);
+      setData(
+        (payload.readers || []).map((row) => ({
+          reader: {
+            id: row.reader_id,
+            name: row.name,
+            phone: row.phone,
+            status: 'active',
+            current_streak: row.current_streak,
+            longest_streak: row.longest_streak,
+          },
+          completedCount: row.days_done,
+          totalCount: payload.plan?.total_days ?? 0,
+          missedDays: row.days_missed,
+          lastCompletedDay: row.last_read_day,
+        })),
+      );
+    } catch (err) {
+      console.error('Failed to load reading progress:', err);
+      setError('We could not reach the server. Check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     reload();
   }, [reload]);
 
-  const value = { data, loading, reload };
+  const value = { data, loading, error, reload };
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;
 }

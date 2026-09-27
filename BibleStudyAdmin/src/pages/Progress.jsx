@@ -1,14 +1,27 @@
 import { useState } from 'react';
-import { Flame, CheckCircle2, ChevronDown, ChevronRight, Calendar, TrendingUp, AlertTriangle } from 'lucide-react';
-import { Avatar, ProgressBar, ReaderSkeletonList } from '@/components/ui';
+import { Flame, CheckCircle2, ChevronDown, ChevronRight, Calendar, TrendingUp, AlertTriangle, Search } from 'lucide-react';
+import { Avatar, ProgressBar, ReaderSkeletonList, ErrorState } from '@/components/ui';
 import { useProgressContext } from '@/context/ProgressContext';
 
 export default function Progress() {
-  const { data, loading } = useProgressContext();
+  const { data, loading, error, reload } = useProgressContext();
   const [expanded, setExpanded] = useState(null);
   const [view, setView] = useState('all');
+  const [search, setSearch] = useState('');
+
+  if (error) {
+    return (
+      <div className="page">
+        <ErrorState message={error} onRetry={reload} />
+      </div>
+    );
+  }
 
   const filtered = data.filter((d) => {
+    const matchesSearch =
+      d.reader.name.toLowerCase().includes(search.toLowerCase()) ||
+      (d.reader.phone || '').includes(search);
+    if (!matchesSearch) return false;
     if (view === 'ontrack') return d.missedDays <= 2 && d.reader.status === 'active';
     if (view === 'behind') return d.missedDays > 2 && d.reader.status === 'active';
     return true;
@@ -25,6 +38,18 @@ export default function Progress() {
       <div>
         <h2 className="page-title serif">Reading Progress</h2>
         <p className="page-sub">Track who's keeping up and who's falling behind</p>
+      </div>
+
+      {/* Search */}
+      <div className="search-wrap">
+        <Search className="search-icon icon-16" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or phone..."
+          className="input input-search"
+        />
       </div>
 
       {/* View toggle */}
@@ -52,7 +77,11 @@ export default function Progress() {
           <div className="empty-circle empty-circle-soft">
             <TrendingUp className="icon-32 empty-glyph" />
           </div>
-          <p className="empty-title-muted">No readers to show</p>
+          <p className="empty-title-muted">
+            {search.trim()
+              ? 'No readers match your search'
+              : 'No readers to show'}
+          </p>
         </div>
       ) : (
         <div className="list-tight">
