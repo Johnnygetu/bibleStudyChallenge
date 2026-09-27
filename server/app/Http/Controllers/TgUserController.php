@@ -10,22 +10,6 @@ use Illuminate\Http\Request;
 class TgUserController extends Controller
 {
     /**
-     * Fetch all registered Telegram users, newest first.
-     */
-    public function index(): JsonResponse
-    {
-        try {
-            $users = TelegramUser::orderByDesc('id')->get();
-        } catch (QueryException $e) {
-            return response()->json([
-                'message' => 'The Telegram users could not be retrieved. Please try again later.',
-            ], 500);
-        }
-
-        return response()->json($users);
-    }
-
-    /**
      * Register a Telegram user from the client side.
      */
     public function store(Request $request): JsonResponse
