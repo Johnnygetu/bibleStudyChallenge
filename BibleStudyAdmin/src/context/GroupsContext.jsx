@@ -130,6 +130,23 @@ export function GroupsProvider({ children }) {
     await openGroup(groupId);
   }, [reload, openGroup]);
 
+  // Promote or demote a member as group leader, then refresh the open detail.
+  const setLeader = useCallback(async ({ groupId, readerId, isLeader }) => {
+    const response = await fetch(`${API_URL}/groups/${groupId}/members/${readerId}/leader`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ is_leader: isLeader }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.message || `The server responded with ${response.status}.`);
+    }
+    await openGroup(groupId);
+  }, [openGroup]);
+
   const closeGroup = useCallback(() => {
     setSelectedId(null);
     setGroupDetail(null);
@@ -144,6 +161,7 @@ export function GroupsProvider({ children }) {
     addGroup,
     assignMembers,
     swapMember,
+    setLeader,
     deleteGroup,
     selectedId,
     groupDetail,

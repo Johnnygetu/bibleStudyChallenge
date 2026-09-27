@@ -813,6 +813,16 @@ ol {
   color: var(--success-600);
 }
 
+.pill-leader {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+  flex-shrink: 0;
+}
+
+.btn-leader-on {
+  color: var(--amber-500);
+}
+
 /* ============================================================
    List rows
    ============================================================ */
@@ -1627,6 +1637,11 @@ img.avatar {
 
 .lb-page > * + * {
   margin-top: 1.25rem;
+}
+
+.lb-tabs {
+  display: flex;
+  justify-content: center;
 }
 
 .lb-skeletons {

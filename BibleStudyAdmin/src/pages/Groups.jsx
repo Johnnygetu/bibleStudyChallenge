@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Users, ChevronLeft, ChevronRight, AlertCircle, ArrowLeftRight } from 'lucide-react';
+import { X, Users, ChevronLeft, ChevronRight, AlertCircle, ArrowLeftRight, Crown } from 'lucide-react';
 import { Avatar, ErrorState, ReaderSkeletonList } from '@/components/ui';
 import { useGroupsContext } from '@/context/GroupsContext';
 
@@ -18,9 +18,13 @@ export default function Groups() {
   } = useGroupsContext();
   const [showAssign, setShowAssign] = useState(false);
   const [swapTarget, setSwapTarget] = useState(null); // member being moved
+  const [leaderTarget, setLeaderTarget] = useState(null); // member to promote/demote
 
   // Detail view: one group and its members
   if (selectedId) {
+    const openGroupMeta = groups.find((g) => g.id === selectedId);
+    const detailName = groupDetail?.name || openGroupMeta?.name || 'Group';
+
     return (
       <div className="page stack fade-in">
         <div className="page-head">
@@ -33,7 +37,7 @@ export default function Groups() {
               <ChevronLeft className="icon-20" />
             </button>
             <div>
-              <h2 className="page-title serif">{groupDetail?.name || 'Group'}</h2>
+              <h2 className="page-title serif">{detailName}</h2>
               <p className="page-sub">
                 {detailLoading ? (
                   <span className="sk-line sk-sub" />
@@ -59,28 +63,56 @@ export default function Groups() {
           </div>
         ) : (
           <div className="list-tight">
-            {groupDetail.readers.map((member) => (
-              <div key={member.id} className="card row">
-                <Avatar name={member.name} size={40} />
-                <div className="row-main">
-                  <p className="row-title truncate">{member.name}</p>
-                  <p className="row-sub truncate">{member.phone_number || 'No phone'}</p>
+            {groupDetail.readers.map((member) => {
+              const isLeader = Boolean(member.pivot?.is_leader);
+              return (
+                <div key={member.id} className="card row">
+                  <Avatar name={member.name} size={40} />
+                  <div className="row-main">
+                    <div className="row-headline">
+                      <p className="row-title truncate">{member.name}</p>
+                      {isLeader && (
+                        <span className="pill-xs pill-leader">
+                          <Crown className="icon-10" fill="currentColor" />
+                          Leader
+                        </span>
+                      )}
+                    </div>
+                    <p className="row-sub truncate">{member.phone_number || 'No phone'}</p>
+                  </div>
+                  <button
+                    onClick={() => setLeaderTarget(member)}
+                    className={isLeader ? 'btn-ghost btn-leader-on' : 'btn-ghost'}
+                    aria-label={
+                      isLeader
+                        ? `Remove ${member.name} as leader`
+                        : `Make ${member.name} a leader`
+                    }
+                    title={isLeader ? 'Remove leader' : 'Make leader'}
+                  >
+                    <Crown className="icon-16" fill={isLeader ? 'currentColor' : 'none'} />
+                  </button>
+                  {!isLeader && (
+                    <button
+                      onClick={() => setSwapTarget(member)}
+                      className="btn-ghost"
+                      aria-label={`Move ${member.name} to another group`}
+                      title="Move to another group"
+                    >
+                      <ArrowLeftRight className="icon-20" />
+                    </button>
+                  )}
                 </div>
-                <button
-                  onClick={() => setSwapTarget(member)}
-                  className="btn-ghost"
-                  aria-label={`Move ${member.name} to another group`}
-                  title="Move to another group"
-                >
-                  <ArrowLeftRight className="icon-20" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
         {swapTarget && (
           <SwapForm member={swapTarget} onClose={() => setSwapTarget(null)} />
+        )}
+        {leaderTarget && (
+          <LeaderConfirm member={leaderTarget} onClose={() => setLeaderTarget(null)} />
         )}
       </div>
     );
@@ -225,6 +257,75 @@ function SwapForm({ member, onClose }) {
         >
           Cancel
         </button>
+      </div>
+    </div>
+  );
+}
+
+// Promote a member to group leader, or demote them back to a regular member.
+function LeaderConfirm({ member, onClose }) {
+  const { groupDetail, setLeader } = useGroupsContext();
+  const isLeader = Boolean(member.pivot?.is_leader);
+  const currentLeader = groupDetail?.readers?.find(
+    (r) => r.pivot?.is_leader && r.id !== member.id,
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function save() {
+    setSaving(true);
+    setError('');
+    try {
+      await setLeader({
+        groupId: groupDetail.id,
+        readerId: member.id,
+        isLeader: !isLeader,
+      });
+      onClose();
+    } catch (err) {
+      console.error('Failed to update leader:', err);
+      setError(err.message || 'Failed to update the group leader.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay fade-in" onClick={onClose}>
+      <div className="modal scale-in" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3 className="modal-title serif">{isLeader ? 'Remove Leader' : 'Make Leader'}</h3>
+          <button onClick={onClose} className="btn-ghost">
+            <X className="icon-20" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="form-error">
+            <AlertCircle className="icon-16 form-error-icon" />
+            {error}
+          </div>
+        )}
+
+        <div className="stack">
+          <p className="assign-hint">
+            {isLeader
+              ? `${member.name} will no longer be the group leader and can be moved to another group again.`
+              : currentLeader
+                ? `${member.name} will replace ${currentLeader.name} as the group's leader — a group has only one leader. Leaders wear a crown and cannot be moved to another group.`
+                : `${member.name} will be marked as a leader of ${groupDetail?.name}. Leaders wear a crown and cannot be moved to another group.`}
+          </p>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="btn-primary btn-block btn-save"
+          >
+            {saving ? 'Saving...' : isLeader ? 'Remove Leader' : 'Make Leader'}
+          </button>
+          <button onClick={onClose} disabled={saving} className="btn-ghost btn-block">
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   );

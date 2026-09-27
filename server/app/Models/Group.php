@@ -16,6 +16,6 @@ class Group extends Model
      */
     public function readers(): BelongsToMany
     {
-        return $this->belongsToMany(Reader::class, 'members');
+        return $this->belongsToMany(Reader::class, 'members')->withPivot('is_leader');
     }
 }

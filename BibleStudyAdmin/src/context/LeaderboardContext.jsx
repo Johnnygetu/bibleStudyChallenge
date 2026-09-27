@@ -1,60 +1,61 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { dummyReaders, dummyQuizResponses, dummyProgress } from '@/lib/dummy';
 
-// Owns the leaderboard: ranked entries derived from the dummy readers,
-// quiz responses, and progress sources.
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+
+// Owns the leaderboard: personal rankings (sum of the reader's scores)
+// and group rankings (sum of each group's members' scores), fetched from
+// the server. The server sorts both boards — score desc, name breaks ties.
 export const LeaderboardContext = createContext(null);
 
 export function LeaderboardProvider({ children }) {
   const [entries, setEntries] = useState([]);
+  const [groupEntries, setGroupEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
-    // Simulate network delay
-    await new Promise(r => setTimeout(r, 500));
-
-    const allReaders = dummyReaders;
-    const allResponses = dummyQuizResponses;
-    const allProgress = dummyProgress;
-
-    const progressByReader = new Map();
-    allProgress.forEach((p) => {
-      if (p.completed) {
-        progressByReader.set(p.reader_id, (progressByReader.get(p.reader_id) || 0) + 1);
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/leaderboard`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) {
+        throw new Error(`The server responded with ${response.status}.`);
       }
-    });
+      const data = await response.json();
 
-    const result = allReaders.map((reader) => {
-      const readerResponses = allResponses.filter((r) => r.reader_id === reader.id);
-      const totalCorrect = readerResponses.filter((r) => r.is_correct).length;
-      const totalAnswered = readerResponses.length;
-      return {
-        reader_id: reader.id,
-        reader_name: reader.name,
-        total_correct: totalCorrect,
-        total_answered: totalAnswered,
-        current_streak: reader.current_streak,
-        longest_streak: reader.longest_streak,
-        days_completed: progressByReader.get(reader.id) || 0,
-      };
-    });
-
-    result.sort((a, b) => {
-      if (b.total_correct !== a.total_correct) return b.total_correct - a.total_correct;
-      if (b.current_streak !== a.current_streak) return b.current_streak - a.current_streak;
-      return b.days_completed - a.days_completed;
-    });
-
-    setEntries(result);
-    setLoading(false);
+      setEntries(
+        (data.personal || []).map((row) => ({
+          reader_id: row.reader_id,
+          reader_name: row.reader_name,
+          total_correct: row.total_score,
+          current_streak: row.current_streak,
+        })),
+      );
+      setGroupEntries(
+        (data.groups || []).map((row) => ({
+          group_id: row.group_id,
+          group_name: row.group_name,
+          members_count: row.members_count,
+          total_correct: row.total_score,
+          avg_correct: row.avg_score,
+          top_reader_name: row.top_reader_name,
+        })),
+      );
+    } catch (err) {
+      console.error('Failed to load leaderboard:', err);
+      setError('We could not reach the server. Check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     reload();
   }, [reload]);
 
-  const value = { entries, loading, reload };
+  const value = { entries, groupEntries, loading, error, reload };
 
   return <LeaderboardContext.Provider value={value}>{children}</LeaderboardContext.Provider>;
 }

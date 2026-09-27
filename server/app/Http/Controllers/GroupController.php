@@ -61,10 +61,17 @@ class GroupController extends Controller
 
         if ((int) $data['target_group_id'] === $group->id) {
             return response(['message' => 'Pick a different group to move this reader to.'], 422);
+        }        if (! $group->readers()->whereKey($data['reader_id'])->exists()) {
+            return response(['message' => 'That reader is not in this group.'], 422);
         }
 
-        if (! $group->readers()->whereKey($data['reader_id'])->exists()) {
-            return response(['message' => 'That reader is not in this group.'], 422);
+        $isLeader = DB::table('members')
+            ->where('group_id', $group->id)
+            ->where('reader_id', $data['reader_id'])
+            ->value('is_leader');
+
+        if ($isLeader) {
+            return response(['message' => 'Group leaders cannot be moved to another group.'], 422);
         }
 
         DB::transaction(function () use ($group, $data) {
@@ -78,6 +85,48 @@ class GroupController extends Controller
             'group' => Group::withCount('readers')->findOrFail($group->id),
             'target' => Group::withCount('readers')->findOrFail($data['target_group_id']),
         ]);
+    }
+
+    /**
+     * Mark a group member as the group's leader. A group has at most one
+     * leader, so promoting someone steps down the current leader first.
+     */
+    public function setLeader(Request $request, Group $group, Reader $reader)
+    {
+        $data = $request->validate([
+            'is_leader' => 'required|boolean',
+        ]);
+
+        $membership = DB::table('members')
+            ->where('group_id', $group->id)
+            ->where('reader_id', $reader->id)
+            ->first();
+
+        if (! $membership) {
+            return response(['message' => 'That reader is not in this group.'], 422);
+        }
+
+        DB::transaction(function () use ($group, $reader, $data) {
+            if ($data['is_leader']) {
+                DB::table('members')
+                    ->where('group_id', $group->id)
+                    ->where('reader_id', '!=', $reader->id)
+                    ->update([
+                        'is_leader' => false,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            DB::table('members')
+                ->where('group_id', $group->id)
+                ->where('reader_id', $reader->id)
+                ->update([
+                    'is_leader' => $data['is_leader'],
+                    'updated_at' => now(),
+                ]);
+        });
+
+        return response($group->load('readers'));
     }
 
     /**

@@ -1,9 +1,17 @@
 import { Users, TrendingUp, HelpCircle, Flame, AlertTriangle, BookOpen } from 'lucide-react';
-import { Avatar, Skeleton, ReaderSkeletonList } from '@/components/ui';
+import { Avatar, Skeleton, ReaderSkeletonList, ErrorState } from '@/components/ui';
 import { useDashboardContext } from '@/context/DashboardContext';
 
 export default function Dashboard({ onNavigate }) {
-  const { stats, currentWeek, recentReaders, loading } = useDashboardContext();
+  const { stats, currentWeek, recentReaders, loading, error, reload } = useDashboardContext();
+
+  if (error) {
+    return (
+      <div className="page">
+        <ErrorState message={error} onRetry={reload} />
+      </div>
+    );
+  }
 
   if (loading || !stats) {
     return (

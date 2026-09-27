@@ -10,6 +10,7 @@ class Member extends Model
     protected $fillable = [
         'group_id',
         'reader_id',
+        'is_leader',
     ];
 
     /**
