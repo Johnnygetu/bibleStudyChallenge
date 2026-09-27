@@ -14,11 +14,11 @@ class BookChapter extends Model
     ];
 
     /**
-     * Chronological order occurrences for this book chapter.
+     * Order entries for this book chapter.
      */
-    public function chronologicalOrders(): HasMany
+    public function orders(): HasMany
     {
-        return $this->hasMany(ChronologicalOrder::class, 'chapter_id');
+        return $this->hasMany(Order::class, 'chapter_id');
     }
 
     /**

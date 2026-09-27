@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Flame, BookOpen, Check, ChevronRight, Sunrise, Trophy, Lock, Brain } from "lucide-react";
 import { useGeneralContext } from "@/context/GeneralContext";
 import { useUserContext } from "@/context/UserContext";
@@ -16,16 +16,84 @@ import ayatLogo from "@/assets/ayat-logo.png";
 import "./TodayScreen.css";
 
 export function TodayScreen({ onNavigate }) {
-  const { profile } = useGeneralContext();
+  const { profile, apiUrl } = useGeneralContext();
   // The registered name lives in localStorage (saved by the registration modal).
   const { user } = useUserContext();
   // Local-only state; nothing persists until integration starts.
-  const [completedLabels, setCompletedLabels] = useState(() => new Set(COMPLETED_CHAPTERS));
+  const [completedLabels, setCompletedLabels] = useState(() => new Set());
   const [quizAnswers, setQuizAnswers] = useState({});
 
+  const [todayGroups, setTodayGroups] = useState([]);
+  const [apiMetadata, setApiMetadata] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState(null);
+
   const today = new Date();
-  const todayGroups = TODAY_GROUPS;
   const leaderboard = LEADERBOARD.slice(0, 5);
+
+  useEffect(() => {
+    // If the local storage has a user but is missing the ID (from before we updated the code)
+    // clear it and force a reload to show the registration screen.
+    if (user && !user.id) {
+      localStorage.removeItem("bible_challenge_user_details");
+      window.location.reload();
+      return;
+    }
+
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
+    
+    async function fetchReadings() {
+      try {
+        const res = await fetch(`${apiUrl}/readers/${user.id}/plans/1/daily-readings`);
+        
+        // If the database was cleared, the backend will return 404 (Not Found).
+        // We should clear the local storage and force a reload to show the registration screen.
+        if (res.status === 404) {
+          localStorage.removeItem("bible_challenge_user_details");
+          window.location.reload();
+          return;
+        }
+
+        if (res.ok) {
+          const data = await res.json();
+          setApiMetadata(data);
+          
+          // Group the readings by book for the UI
+          const grouped = {};
+          const completed = new Set();
+          
+          data.readings.forEach(reading => {
+            const label = `${reading.book} ${reading.chapter_number}`;
+            if (!grouped[reading.book]) {
+              grouped[reading.book] = {
+                id: reading.book.toLowerCase().replace(/\s+/g, '-'),
+                book: reading.book,
+                chapterLabels: []
+              };
+            }
+            grouped[reading.book].chapterLabels.push(label);
+            
+            if (reading.is_completed) {
+              completed.add(label);
+            }
+          });
+          
+          setTodayGroups(Object.values(grouped));
+          setCompletedLabels(completed);
+        }
+      } catch (err) {
+        console.error("Failed to fetch daily readings", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    fetchReadings();
+  }, [user, apiUrl]);
 
   const allTodayChapters = todayGroups.flatMap((g) => g.chapterLabels);
   const todayCompletedCount = allTodayChapters.filter((ch) => completedLabels.has(ch)).length;
@@ -50,9 +118,58 @@ export function TodayScreen({ onNavigate }) {
     hapticNotification(q && q.correct_option === optionKey ? "success" : "error");
   };
 
+  const handleSaveProgress = async () => {
+    if (completedLabels.size === 0 || !apiMetadata) return;
+
+    setIsSaving(true);
+    
+    // Find the highest order_id among the checked chapters
+    const checkedChapters = apiMetadata.readings.filter(r => 
+      completedLabels.has(`${r.book} ${r.chapter_number}`)
+    );
+    
+    if (checkedChapters.length === 0) {
+      setIsSaving(false);
+      return;
+    }
+
+    const lastChapter = checkedChapters.reduce((prev, current) => 
+      (prev.order_id > current.order_id) ? prev : current
+    );
+
+    try {
+      hapticImpact("medium");
+      const res = await fetch(`${apiUrl}/readers/${user.id}/plans/1/save-progress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chapter_id: lastChapter.chapter_id })
+      });
+      if (res.ok) {
+        hapticNotification("success");
+        setSaveMessage({ type: "success", text: "Progress saved successfully!" });
+        setTimeout(() => setSaveMessage(null), 3000);
+      } else {
+        hapticNotification("error");
+        setSaveMessage({ type: "error", text: "Failed to save progress." });
+        setTimeout(() => setSaveMessage(null), 3000);
+      }
+    } catch (err) {
+      console.error("Failed to save progress", err);
+      hapticNotification("error");
+      setSaveMessage({ type: "error", text: "Network error while saving." });
+      setTimeout(() => setSaveMessage(null), 3000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const displayName = user?.fullName?.trim() || profile.first_name;
   const greeting = today.getHours() < 12 ? "Good morning" : today.getHours() < 18 ? "Good afternoon" : "Good evening";
   const todayDateStr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+
+  if (isLoading) {
+    return <TodayScreenSkeleton />;
+  }
 
   return (
     <div className="screen">
@@ -117,7 +234,16 @@ export function TodayScreen({ onNavigate }) {
           <h2 className="reading-card__title">Today's Reading</h2>
           <span className="reading-card__day">Day {CURRENT_DAY} of {TOTAL_DAYS}</span>
         </div>
-        <p className="reading-card__total">{todayTotal} chapters total</p>
+
+        {apiMetadata?.is_catch_up_mode && (
+          <div style={{ backgroundColor: 'rgba(255, 165, 0, 0.2)', padding: '8px 12px', borderRadius: '8px', marginBottom: '12px', fontSize: '0.9rem', color: '#e67e22' }}>
+            <strong>Catch-up mode:</strong> We added a few extra verses today to keep you on track!
+          </div>
+        )}
+
+        <p className="reading-card__total">
+          {todayTotal} chapters total ({apiMetadata?.verses_assigned || 0} verses)
+        </p>
 
         <ProgressBar value={todayCompletedCount} max={todayTotal} showNumbers size="lg" />
 
@@ -139,6 +265,19 @@ export function TodayScreen({ onNavigate }) {
             />
           ))}
         </div>
+        
+        <button 
+          className="reading-card__save" 
+          onClick={handleSaveProgress}
+          disabled={completedLabels.size === 0 || isSaving}
+        >
+          {isSaving ? "Saving..." : "Save Progress"}
+        </button>
+        {saveMessage && (
+          <div style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', color: saveMessage.type === 'success' ? 'var(--success-500)' : 'var(--ember-500)' }}>
+            {saveMessage.text}
+          </div>
+        )}
       </div>
 
       {/* Today's Quiz Section */}
@@ -271,6 +410,51 @@ function ChapterGroup({ book, chapterLabels, completedLabels, onToggle }) {
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function TodayScreenSkeleton() {
+  return (
+    <div className="screen">
+      {/* Brand Header Skeleton */}
+      <div className="brand">
+        <div className="brand__row">
+          <div className="skeleton skeleton-logo"></div>
+          <div>
+            <div className="skeleton skeleton-title"></div>
+            <div className="skeleton skeleton-subtitle"></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Greeting Skeleton */}
+      <div>
+        <div className="skeleton skeleton-greeting"></div>
+        <div className="skeleton skeleton-date"></div>
+      </div>
+
+      {/* Streak Skeleton */}
+      <div className="card-primary streak-card">
+        <div className="skeleton skeleton-streak-row"></div>
+      </div>
+
+      {/* Reading Skeleton */}
+      <div className="card-primary reading-card">
+        <div className="skeleton skeleton-reading-head"></div>
+        <div className="skeleton skeleton-reading-total"></div>
+        <div className="skeleton skeleton-progress"></div>
+        
+        <div className="chapter-groups" style={{ marginTop: '1.25rem' }}>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="chapter-group">
+              <div className="skeleton skeleton-chapter-head"></div>
+              <div className="skeleton skeleton-chapter-toggle"></div>
+              {i === 1 && <div className="skeleton skeleton-chapter-toggle" style={{ marginTop: '0.5rem' }}></div>}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
