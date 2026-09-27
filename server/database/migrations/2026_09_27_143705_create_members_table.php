@@ -11,10 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('chronological_order', function (Blueprint $table) {
+        Schema::create('members', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('group_id')->constrained('groups')->cascadeOnDelete();
+            $table->foreignId('reader_id')->constrained('readers')->cascadeOnDelete();
             $table->timestamps();
-            $table->foreignId('chapter_id')->constrained('book_chapters')->onDelete('cascade');
+
+            $table->unique(['group_id', 'reader_id']);
         });
     }
 
@@ -23,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('chronological_order');
+        Schema::dropIfExists('members');
     }
 };
