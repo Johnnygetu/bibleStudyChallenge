@@ -1,8 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Plus, X, Edit2, HelpCircle, ChevronDown, ChevronRight, Trash2, BookOpen, Check, AlertCircle } from 'lucide-react';
 import { ErrorState } from '@/components/ui';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+import { useQuestionsContext } from '@/context/QuestionsContext';
 
 const BIBLE_BOOKS = {
   "Genesis": 50, "Exodus": 40, "Leviticus": 27, "Numbers": 36, "Deuteronomy": 34,
@@ -21,66 +20,12 @@ const BIBLE_BOOKS = {
   "3 John": 1, "Jude": 1, "Revelation": 22
 };
 
-const LETTERS = ['a', 'b', 'c', 'd'];
-
-// The API nests the chapter and answers; flatten them into the shape the
-// book/chapter grouping and option rendering below already expect.
-function toQuestion(row) {
-  const answers = Array.isArray(row.answers) ? row.answers : [];
-  const correctIndex = answers.findIndex((a) => a.correct_answer);
-
-  const mapped = {
-    id: row.id,
-    book: row.chapter?.book || 'Unknown Book',
-    chapter: row.chapter?.chapter_number || 1,
-    question_text: row.question_text,
-    bible_reference: row.bible_reference || null,
-    created_at: row.created_at,
-    correct_option: correctIndex >= 0 ? LETTERS[correctIndex] : null,
-  };
-
-  LETTERS.forEach((letter, index) => {
-    mapped[`option_${letter}`] = answers[index]?.answer_text || '';
-  });
-
-  return mapped;
-}
-
 export default function Quizzes() {
-  const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { questions, loading, error, reload, deleteQuestion } = useQuestionsContext();
   const [showForm, setShowForm] = useState(false);
   const [expandedBook, setExpandedBook] = useState(null);
   const [expandedChapter, setExpandedChapter] = useState(null);
   const [editing, setEditing] = useState(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${API_URL}/questions`, {
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) {
-        throw new Error(`The server responded with ${response.status}.`);
-      }
-      const rows = await response.json();
-      const mapped = (Array.isArray(rows) ? rows : []).map(toQuestion);
-      // Sort descending by created_at
-      mapped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      setQuestions(mapped);
-    } catch (err) {
-      console.error('Failed to load questions:', err);
-      setError('We could not reach the server. Check your connection and try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   const grouped = new Map();
 
@@ -108,21 +53,6 @@ export default function Quizzes() {
     bookMap.get(chapter).push(q);
   });
 
-  async function deleteQuestion(id) {
-    try {
-      const response = await fetch(`${API_URL}/questions/${id}`, {
-        method: 'DELETE',
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) {
-        throw new Error(`The server responded with ${response.status}.`);
-      }
-      load();
-    } catch (err) {
-      console.error('Failed to delete question:', err);
-    }
-  }
-
   if (loading) {
     return (
       <div className="page-loader">
@@ -149,7 +79,7 @@ export default function Quizzes() {
 
       {/* Questions grouped by book and chapter */}
       {error ? (
-        <ErrorState message={error} onRetry={load} />
+        <ErrorState message={error} onRetry={reload} />
       ) : grouped.size === 0 ? (
         <div className="empty-block">
           <div className="empty-circle">
@@ -287,13 +217,14 @@ export default function Quizzes() {
         </div>
       )}
 
-      {showForm && <QuestionForm onClose={() => setShowForm(false)} onSaved={load} />}
-      {editing && <QuestionForm question={editing} onClose={() => setEditing(null)} onSaved={load} />}
+      {showForm && <QuestionForm onClose={() => setShowForm(false)} />}
+      {editing && <QuestionForm question={editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }
 
-function QuestionForm({ question, onClose, onSaved }) {
+function QuestionForm({ question, onClose }) {
+  const { addQuestion, updateQuestion } = useQuestionsContext();
   const isEdit = Boolean(question);
   const [book, setBook] = useState(question?.book || 'Genesis');
   const [chapter, setChapter] = useState(question?.chapter || 1);
@@ -318,33 +249,12 @@ function QuestionForm({ question, onClose, onSaved }) {
     setError('');
 
     try {
-      const response = await fetch(isEdit ? `${API_URL}/questions/${question.id}` : `${API_URL}/questions`, {
-        method: isEdit ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({
-          book: book.trim(),
-          chapter: chapter,
-          question_text: questionText.trim(),
-          options: {
-            a: options.a.trim(),
-            b: options.b.trim(),
-            c: options.c.trim(),
-            d: options.d.trim(),
-          },
-          correct_option: correct,
-          bible_reference: reference.trim() || null,
-        }),
-      });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        throw new Error(body?.message || `The server responded with ${response.status}.`);
+      const input = { book, chapter, questionText, options, correctOption: correct, reference };
+      if (isEdit) {
+        await updateQuestion(question.id, input);
+      } else {
+        await addQuestion(input);
       }
-
-      onSaved();
       onClose();
     } catch (err) {
       console.error('Failed to save question:', err);

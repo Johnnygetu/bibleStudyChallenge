@@ -455,6 +455,15 @@ ol {
   border-top-color: transparent;
 }
 
+.empty-block .btn-primary {
+  margin-top: 1.25rem;
+}
+
+.assign-hint {
+  font-size: 0.75rem;
+  color: var(--ink-400);
+}
+
 .empty-block {
   text-align: center;
   padding: 4rem 0;
@@ -846,6 +855,13 @@ ol {
   align-items: center;
   gap: 0.75rem;
   padding: 0.875rem;
+}
+
+.detail-head {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: -0.5rem;
 }
 
 .row-btn {

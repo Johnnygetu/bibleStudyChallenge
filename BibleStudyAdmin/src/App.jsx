@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { LayoutDashboard, Users, TrendingUp, HelpCircle, Trophy } from 'lucide-react';
+import { LayoutDashboard, Users, UsersRound, TrendingUp, HelpCircle, Trophy } from 'lucide-react';
 import ayatLogo from '@/assets/ayat-logo.png';
 import Dashboard from '@/pages/Dashboard.jsx';
 import Readers from '@/pages/Readers.jsx';
+import Groups from '@/pages/Groups.jsx';
 import Progress from '@/pages/Progress.jsx';
 import Quizzes from '@/pages/Quizzes.jsx';
 import Leaderboard from '@/pages/Leaderboard.jsx';
-import { UsersProvider } from '@/context/UsersContext';
+import AppProviders from '@/context/AppProviders';
 
 const tabs = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'readers', label: 'Readers', icon: Users },
+  { id: 'groups', label: 'Groups', icon: UsersRound },
   { id: 'progress', label: 'Progress', icon: TrendingUp },
   { id: 'quizzes', label: 'Quizzes', icon: HelpCircle },
   { id: 'leaderboard', label: 'Ranks', icon: Trophy },
@@ -20,7 +22,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   return (
-    <UsersProvider>
+    <AppProviders>
       <div className="app-shell">
         {/* Header */}
         <header className="app-header">
@@ -51,6 +53,7 @@ export default function App() {
         <main className="app-main">
           {activeTab === 'dashboard' && <Dashboard onNavigate={setActiveTab} />}
           {activeTab === 'readers' && <Readers />}
+          {activeTab === 'groups' && <Groups />}
           {activeTab === 'progress' && <Progress />}
           {activeTab === 'quizzes' && <Quizzes />}
           {activeTab === 'leaderboard' && <Leaderboard />}
@@ -81,6 +84,6 @@ export default function App() {
           </div>
         </nav>
       </div>
-    </UsersProvider>
+    </AppProviders>
   );
 }

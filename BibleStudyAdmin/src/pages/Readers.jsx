@@ -24,8 +24,6 @@ export default function Readers() {
   };
 
   function deleteReader(id) {
-    // Local-only until a DELETE endpoint is wired up.
-    console.log('Remove reader from view', id);
     removeUser(id);
     setMenuFor(null);
   }

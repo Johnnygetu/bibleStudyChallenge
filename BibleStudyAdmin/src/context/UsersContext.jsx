@@ -21,7 +21,7 @@ function toReader(row) {
 }
 
 // Owns everything about the reader list: the fetch, its loading/error states,
-// and the local-only mutations the admin menus perform.
+// and the mutations the admin menus perform (delete persists to the API).
 export const UsersContext = createContext(null);
 
 export function UsersProvider({ children }) {
@@ -55,14 +55,26 @@ export function UsersProvider({ children }) {
     reload();
   }, [reload]);
 
-  // Local-only mutations until the admin gets write endpoints wired up.
+  // Local patch for status changes until the readers table tracks status.
   const patchUser = (id, patch) => {
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...patch } : u)));
   };
 
-  const removeUser = (id) => {
-    setUsers((prev) => prev.filter((u) => u.id !== id));
-  };
+  // Delete on the server, then refresh the list from the API.
+  const removeUser = useCallback(async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/readers/${id}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) {
+        throw new Error(`The server responded with ${response.status}.`);
+      }
+      await reload();
+    } catch (err) {
+      console.error('Failed to delete reader:', err);
+    }
+  }, [reload]);
 
   const value = { users, loading, error, reload, patchUser, removeUser };
 
