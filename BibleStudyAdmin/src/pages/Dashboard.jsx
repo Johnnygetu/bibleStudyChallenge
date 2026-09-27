@@ -1,4 +1,4 @@
-import { Users, TrendingUp, HelpCircle, Flame, AlertTriangle, BookOpen } from 'lucide-react';
+import { Users, TrendingUp, HelpCircle, Flame, AlertTriangle, BookOpen, UsersRound } from 'lucide-react';
 import { Avatar, Skeleton, ReaderSkeletonList, ErrorState } from '@/components/ui';
 import { useDashboardContext } from '@/context/DashboardContext';
 
@@ -44,7 +44,7 @@ export default function Dashboard({ onNavigate }) {
   const cards = [
     { label: 'Total Readers', value: stats.totalReaders, icon: Users, tab: 'readers' },
     { label: 'Quiz Questions', value: stats.totalQuestions, icon: HelpCircle, tab: 'quizzes' },
-    { label: 'Avg Streak', value: `${stats.avgStreak}d`, icon: Flame, tab: 'progress' },
+    { label: 'Groups', value: stats.totalGroups, icon: UsersRound, tab: 'groups' },
   ];
 
   return (

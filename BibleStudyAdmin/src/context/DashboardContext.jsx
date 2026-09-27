@@ -27,17 +27,11 @@ export function DashboardProvider({ children }) {
       }
       const data = await response.json();
 
-      // Consistency stats aren't tracked by the server yet — derive them
-      // from the dummy readers for now.
+      // Track stats (on track / falling behind) aren't recorded by the
+      // server yet — derive them from the dummy readers for now.
       const active = dummyReaders.filter((r) => r.status === 'active');
       const onTrack = active.filter((r) => r.current_streak >= 3).length;
       const fallingBehind = active.filter((r) => r.current_streak === 0).length;
-      const avgStreak =
-        active.length > 0
-          ? Math.round(
-              (active.reduce((s, r) => s + r.current_streak, 0) / active.length) * 10,
-            ) / 10
-          : 0;
 
       const today = new Date();
       const startDate = new Date('2026-09-21');
@@ -49,7 +43,7 @@ export function DashboardProvider({ children }) {
       setStats({
         totalReaders: data.total_readers,
         totalQuestions: data.total_questions,
-        avgStreak,
+        totalGroups: data.total_groups,
         onTrack,
         fallingBehind,
       });

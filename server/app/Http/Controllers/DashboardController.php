@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Group;
 use App\Models\Question;
 use App\Models\Reader;
 
@@ -16,6 +17,7 @@ class DashboardController extends Controller
         return response([
             'total_readers' => Reader::count(),
             'total_questions' => Question::count(),
+            'total_groups' => Group::count(),
             'recent_readers' => Reader::latest('created_at')
                 ->take(5)
                 ->get()
