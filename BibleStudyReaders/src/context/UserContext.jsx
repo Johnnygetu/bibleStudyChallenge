@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { isTelegramContext, waitForTelegramUser } from "@/lib/telegram";
 import { useGeneralContext } from "@/context/GeneralContext";
 
@@ -20,41 +20,12 @@ function composeFullName(telegramUser) {
 
 // ---------------------------------------------------------------------------
 // TEMPORARY (local development): the Telegram gate is switched off so the app
-// can be exercised in a plain browser. Flip TELEGRAM_REQUIRED back to `true`
-// to restore the "Telegram required" gate — the real path is untouched.
+// can be exercised in a plain browser. The chat id is therefore OPTIONAL —
+// registration works with or without it, and a later Telegram launch attaches
+// the id it missed. Flip TELEGRAM_REQUIRED back to `true` to make the chat id
+// mandatory again once the mini app is the only way in.
 // ---------------------------------------------------------------------------
 const TELEGRAM_REQUIRED = false;
-const DEV_CHAT_ID_STORAGE_KEY = "bible_challenge_dev_chat_id";
-
-// A 10-digit id in the 9xxxxxxxxx range, which real Telegram chat ids never
-// reach, so a stand-in id can't shadow a genuine one.
-function generateFakeChatId() {
-  return 9000000000 + Math.floor(Math.random() * 1000000000);
-}
-
-// Stable per device: a fresh id on every load would create a new tg_users row
-// each time and orphan the previous registration.
-function loadOrCreateFakeChatId() {
-  try {
-    const stored = localStorage.getItem(DEV_CHAT_ID_STORAGE_KEY);
-    if (stored && /^\d+$/.test(stored)) return Number(stored);
-    const generated = generateFakeChatId();
-    localStorage.setItem(DEV_CHAT_ID_STORAGE_KEY, String(generated));
-    return generated;
-  } catch {
-    return generateFakeChatId();
-  }
-}
-
-// A stand-in user for plain-browser runs. Available immediately, so there is
-// no 3s "Waiting for Telegram…" stall, and it disappears (letting the real
-// Telegram path run) as soon as the gate is turned back on or a genuine
-// Telegram launch is detected.
-function localFallbackUser() {
-  if (TELEGRAM_REQUIRED) return null;
-  if (isTelegramContext()) return null;
-  return { id: loadOrCreateFakeChatId() };
-}
 
 // Owns everything user-related: the Telegram user (name + chat id), the
 // registered user saved on this device, and the registration flow itself.
@@ -62,18 +33,21 @@ export const UserContext = createContext(null);
 
 export function UserProvider({ children }) {
   const [user, setUser] = useState(loadStoredUser);
-  const [telegramUser, setTelegramUser] = useState(() => localFallbackUser());
-  // "loading" -> "ready" once the chat id is known, "failed" if Telegram
+  const [telegramUser, setTelegramUser] = useState(null);
+  // "loading" -> "ready" once the chat id is known (or Telegram was skipped,
+  // since the id is optional), "failed" only when Telegram is required and
   // never delivers a user (e.g. opened outside the bot, script blocked).
-  const [telegramStatus, setTelegramStatus] = useState(telegramUser ? "ready" : "loading");
+  const [telegramStatus, setTelegramStatus] = useState(() =>
+    !TELEGRAM_REQUIRED && !isTelegramContext() ? "ready" : "loading"
+  );
   const [telegramAttempt, setTelegramAttempt] = useState(0);
   const { apiUrl } = useGeneralContext();
 
   // Hydrate the Telegram user when it becomes available (first open).
   // Bumping telegramAttempt (Retry) re-runs the wait.
   useEffect(() => {
-    // Outside Telegram the stand-in user is already set, so there is nothing
-    // to wait for — don't stall the register button behind a 3s poll.
+    // Outside Telegram there is nothing to wait for: the chat id simply stays
+    // absent, so don't stall behind the 3s poll.
     if (!TELEGRAM_REQUIRED && !isTelegramContext()) {
       setTelegramStatus("ready");
       return;
@@ -89,9 +63,8 @@ export function UserProvider({ children }) {
       } else if (TELEGRAM_REQUIRED) {
         setTelegramStatus("failed");
       } else {
-        // Telegram was present but never produced a user — fall back so the
-        // app still works while the gate is off.
-        setTelegramUser({ id: loadOrCreateFakeChatId() });
+        // Optional mode: a launch that never produced a user just means "no
+        // chat id yet" — registration still works without it.
         setTelegramStatus("ready");
       }
     });
@@ -102,16 +75,15 @@ export function UserProvider({ children }) {
 
   const retryTelegram = () => setTelegramAttempt((n) => n + 1);
 
-  // The chat id always comes silently from the Telegram bot — never typed.
-  // Creates the matching row in the backend (tg_users) before marking this
-  // device registered, so a saved local user always has a server-side user.
+  // The chat id comes silently from the Telegram bot — never typed. When it
+  // is available it rides along with the registration request; when it is not
+  // (optional mode, opened outside Telegram) the account is still created.
   const register = async (fullName, phoneNumber) => {
     const chatId = telegramUser?.id ? String(telegramUser.id) : "";
     const phone = (phoneNumber ?? "").trim();
 
-    // Registration is gated on the chat id: without it there is nothing to
-    // create server-side, so refuse instead of saving an incomplete user.
-    if (!chatId) {
+    // Only enforced once the mini app is the sole entry point.
+    if (TELEGRAM_REQUIRED && !chatId) {
       throw new Error(
         telegramStatus === "failed"
           ? "Telegram did not load. Open this app inside Telegram and tap Retry."
@@ -123,6 +95,9 @@ export function UserProvider({ children }) {
       throw new Error("A phone number is required to complete registration.");
     }
 
+    const body = { name: fullName, phone_number: phone };
+    if (chatId) body.chat_id = Number(chatId);
+
     let response;
     try {
       response = await fetch(`${apiUrl}/readers`, {
@@ -131,11 +106,7 @@ export function UserProvider({ children }) {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({
-          chat_id: Number(chatId),
-          name: fullName,
-          phone_number: phone,
-        }),
+        body: JSON.stringify(body),
       });
     } catch {
       throw new Error("We could not reach the server. Check your connection and try again.");
@@ -153,6 +124,39 @@ export function UserProvider({ children }) {
     setUser(next);
     return next;
   };
+
+  // A chat id the registration missed (it was still loading, or the account
+  // was made outside Telegram) is attached silently on the first launch that
+  // does have one, so the optional id is never permanently missing. Best
+  // effort: losing it only leaves the reader without Telegram reminders.
+  const syncedChatIds = useRef(new Set());
+  useEffect(() => {
+    const chatId = telegramUser?.id ? String(telegramUser.id) : "";
+    if (!user?.id || !chatId || user.chatId === chatId) return;
+    if (syncedChatIds.current.has(chatId)) return;
+    syncedChatIds.current.add(chatId);
+
+    fetch(`${apiUrl}/readers/${user.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ chat_id: Number(chatId) }),
+    })
+      .then((res) => {
+        if (!res.ok) return;
+        setUser((prev) => {
+          if (!prev || prev.chatId === chatId) return prev;
+          const next = { ...prev, chatId };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          return next;
+        });
+      })
+      .catch(() => {
+        // Registration already succeeded without the chat id — nothing to do.
+      });
+  }, [telegramUser, user, apiUrl]);
 
   const value = {
     user,

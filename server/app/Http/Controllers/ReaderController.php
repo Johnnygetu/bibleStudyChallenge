@@ -20,10 +20,17 @@ class ReaderController extends Controller
         $data = $request->validate([
             'phone_number' => 'required|string',
             'name' => 'required|string',
-            'chat_id' => 'required|unique:readers,chat_id',
+            // Optional for now: the chat id comes from a Telegram mini app
+            // launch and may only be attached on a later visit.
+            'chat_id' => 'nullable|integer|unique:readers,chat_id',
         ]);
 
-        return response(Reader::create($data), 201);
+        $reader = Reader::create($data);
+        // Reload so the response always carries every column — including a
+        // chat id that was absent from the request (optional for now).
+        $reader->refresh();
+
+        return response($reader, 201);
     }
 
     public function show(Reader $reader)
@@ -36,7 +43,7 @@ class ReaderController extends Controller
         $data = $request->validate([
             'phone_number' => 'sometimes|string',
             'name' => 'sometimes|string',
-            'chat_id' => 'sometimes|unique:readers,chat_id,'.$reader->id,
+            'chat_id' => 'sometimes|nullable|integer|unique:readers,chat_id,'.$reader->id,
         ]);
 
         return $reader->update($data) ? $reader : response(['message' => 'Update failed'], 500);

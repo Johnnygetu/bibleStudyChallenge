@@ -21,13 +21,13 @@ export function RegistrationModal() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // The register button stays blocked until the bot hands us a chat id.
-  const telegramReady = telegramStatus === "ready";
+  // The chat id is optional for now, so Telegram only ever *adds* detail —
+  // it never blocks the form.
   const telegramWaiting = telegramStatus === "loading";
   const telegramFailed = telegramStatus === "failed";
 
-  // Prefill with the Telegram name once it arrives — without clobbering
-  // anything the user has already typed.
+  // Prefill the name with the Telegram user's name (first + last) once it
+  // arrives — without clobbering anything the user has already typed.
   useEffect(() => {
     setFullName((prev) => prev || suggestedName);
   }, [suggestedName]);
@@ -42,7 +42,7 @@ export function RegistrationModal() {
     const trimmed = fullName.trim();
     const trimmedPhone = phone.trim();
     // Enter in the input can still submit the form — re-check the gate here.
-    if (!trimmed || !trimmedPhone || submitting || !telegramReady) return;
+    if (!trimmed || !trimmedPhone || submitting) return;
 
     if (!PHONE_INPUT_PATTERN.test(trimmedPhone)) {
       setError("Enter a valid phone number, e.g. +1 234 567 8901.");
@@ -126,19 +126,9 @@ export function RegistrationModal() {
               </p>
             )}
 
-            <button
-              type="submit"
-              className="btn-primary registration__submit"
-              disabled={submitting || !telegramReady}
-            >
+            <button type="submit" className="btn-primary registration__submit" disabled={submitting}>
               <span>
-                {submitting
-                  ? "Creating your account…"
-                  : telegramWaiting
-                    ? "Waiting for Telegram…"
-                    : telegramFailed
-                      ? "Telegram required"
-                      : "Start Journey"}
+                {submitting ? "Creating your account…" : telegramWaiting ? "Connecting to Telegram…" : "Start Journey"}
               </span>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14"></path>
