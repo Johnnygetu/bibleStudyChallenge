@@ -1,25 +1,29 @@
 import { useEffect, useRef } from "react";
 import { Flame, Trophy, Crown, Brain } from "lucide-react";
-import { useGeneralContext } from "@/context/GeneralContext";
-import { LEADERBOARD } from "@/lib/data";
+import { useUserContext } from "@/context/UserContext";
+import { useLeaderboardContext } from "@/context/LeaderboardContext";
 import { Avatar } from "@/components/ui";
 import ayatLogo from "@/assets/ayat-logo.png";
 import "./LeaderboardScreen.css";
 
 export function LeaderboardScreen() {
-  const { profile } = useGeneralContext();
+  // The registered reader's id marks their own row with "(You)".
+  const { user } = useUserContext();
+  const { entries, loading, error } = useLeaderboardContext();
   const myEntryRef = useRef(null);
 
-  const entries = LEADERBOARD;
-  const myIndex = entries.findIndex((e) => e.id === profile.id);
+  const myId = user?.id != null ? Number(user.id) : null;
+  const myIndex = myId == null ? -1 : entries.findIndex((e) => Number(e.id) === myId);
   const myRank = myIndex >= 0 ? myIndex + 1 : null;
 
   useEffect(() => {
+    // The board arrives async — scroll to my row once it has rendered.
+    if (loading) return;
     const timer = setTimeout(() => {
       myEntryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 300);
     return () => clearTimeout(timer);
-  }, []);
+  }, [loading, entries]);
 
   const top3 = entries.slice(0, 3);
   const restEntries = entries.slice(3);
@@ -56,6 +60,26 @@ export function LeaderboardScreen() {
         <h1 className="leaderboard__header-title">Leaderboard</h1>
       </div>
 
+      {loading ? (
+        <div className="leaderboard-empty">
+          <p className="leaderboard-empty__text">Loading leaderboard…</p>
+        </div>
+      ) : error ? (
+        <div className="leaderboard-empty">
+          <Trophy className="leaderboard-empty__icon" />
+          <p className="leaderboard-empty__title">Leaderboard unavailable</p>
+          <p className="leaderboard-empty__text">{error}</p>
+        </div>
+      ) : entries.length === 0 ? (
+        <div className="leaderboard-empty">
+          <Trophy className="leaderboard-empty__icon" />
+          <p className="leaderboard-empty__title">No readers yet</p>
+          <p className="leaderboard-empty__text">
+            Rankings will appear here once readers start scoring.
+          </p>
+        </div>
+      ) : (
+        <>
       {/* My stats card */}
       {myEntry && (
         <div className="card-primary my-stats">
@@ -98,7 +122,7 @@ export function LeaderboardScreen() {
       <div className="ranking-list">
         {restEntries.map((entry, idx) => {
           const rank = idx + 4;
-          const isMe = entry.id === profile.id;
+          const isMe = myId !== null && Number(entry.id) === myId;
           return (
             <div
               key={entry.id}
@@ -130,6 +154,8 @@ export function LeaderboardScreen() {
           );
         })}
       </div>
+        </>
+      )}
     </div>
   );
 }

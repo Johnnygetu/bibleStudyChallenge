@@ -5,8 +5,8 @@ import { useUserContext } from "@/context/UserContext";
 import {
   TODAY_GROUPS,
   COMPLETED_CHAPTERS,
-  LEADERBOARD,
 } from "@/lib/data";
+import { useLeaderboardContext } from "@/context/LeaderboardContext";
 import { hapticImpact, hapticNotification } from "@/lib/telegram";
 import { ProgressBar, Avatar } from "@/components/ui";
 import ayatLogo from "@/assets/ayat-logo.png";
@@ -25,14 +25,28 @@ export function TodayScreen({ onNavigate }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Quiz submission: posts the day's answers and stores the score on the server.
+  const [isSubmittingQuiz, setIsSubmittingQuiz] = useState(false);
+  const [quizResult, setQuizResult] = useState(null);
+  const [quizSubmitError, setQuizSubmitError] = useState(null);
+
   // Quiz questions fetched from the API for today's chapters
   const [quizQuestions, setQuizQuestions] = useState([]);
   const [quizLoading, setQuizLoading] = useState(false);
   const [hasQuestions, setHasQuestions] = useState(true);
   const [saveMessage, setSaveMessage] = useState(null);
 
+  // Live leaderboard from the backend (Top 5 of the personal board).
+  const {
+    entries: leaderboardEntries,
+    loading: leaderboardLoading,
+    error: leaderboardError,
+    reload: reloadLeaderboard,
+  } = useLeaderboardContext();
+  const top5 = leaderboardEntries.slice(0, 5);
+  const myId = user?.id != null ? Number(user.id) : null;
+
   const today = new Date();
-  const leaderboard = LEADERBOARD.slice(0, 5);
 
   useEffect(() => {
     // If the local storage has a user but is missing the ID (from before we updated the code)
@@ -63,6 +77,15 @@ export function TodayScreen({ onNavigate }) {
         if (res.ok) {
           const data = await res.json();
           setApiMetadata(data);
+
+          // The plan's start date hasn't arrived yet — show an "X days left"
+          // countdown instead of the readings, questions and streak details.
+          if ((data.days_until_start ?? 0) > 0) {
+            setTodayGroups([]);
+            setCompletedLabels(new Set());
+            setHasQuestions(false);
+            return;
+          }
           
           // Group the readings by book for the UI
           const grouped = {};
@@ -125,10 +148,32 @@ export function TodayScreen({ onNavigate }) {
     fetchReadings();
   }, [user, apiUrl]);
 
+  // Countdown view: while the plan's start date is in the future we show an
+  // "X days left" card instead of the reading plan, quiz and streak sections.
+  const daysUntilStart = apiMetadata?.days_until_start ?? 0;
+  const notStarted = daysUntilStart > 0;
+  const startDateLabel = apiMetadata?.starting_day
+    ? new Date(`${apiMetadata.starting_day}T00:00:00`).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })
+    : "";
+
   const allTodayChapters = todayGroups.flatMap((g) => g.chapterLabels);
   const todayCompletedCount = allTodayChapters.filter((ch) => completedLabels.has(ch)).length;
   const todayTotal = allTodayChapters.length;
   const allDone = todayTotal > 0 && todayCompletedCount === todayTotal;
+
+  // Only the unlocked questions can be answered and submitted; finishing the
+  // reading unlocks the rest, which makes the button available once more.
+  const visibleQuizQuestions = allDone ? quizQuestions : quizQuestions.slice(0, 1);
+  const allQuizAnswered =
+    visibleQuizQuestions.length > 0 &&
+    visibleQuizQuestions.every((q) => quizAnswers[q.id]);
+  const canSubmitQuiz =
+    allQuizAnswered &&
+    (!quizResult || quizResult.answered < visibleQuizQuestions.length);
 
   const handleToggleChapter = (chapterLabel) => {
     hapticImpact("light");
@@ -147,6 +192,40 @@ export function TodayScreen({ onNavigate }) {
     const selectedAnswer = q?.answers?.find(a => a.id === answerId);
     setQuizAnswers(prev => ({ ...prev, [questionId]: answerId }));
     hapticNotification(selectedAnswer?.correct_answer ? "success" : "error");
+  };
+
+  // Post today's answers; the server computes the score and stores one row
+  // per reading day, then the Top 5 card refreshes with the new total.
+  const handleQuizSubmit = async () => {
+    if (!user?.id || isSubmittingQuiz || !canSubmitQuiz) return;
+
+    const payload = visibleQuizQuestions.map((q) => ({
+      question_id: q.id,
+      answer_id: quizAnswers[q.id],
+    }));
+
+    setIsSubmittingQuiz(true);
+    setQuizSubmitError(null);
+    try {
+      hapticImpact("medium");
+      const res = await fetch(`${apiUrl}/readers/${user.id}/scores`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ answers: payload }),
+      });
+      if (!res.ok) throw new Error(`The server responded with ${res.status}.`);
+
+      const data = await res.json();
+      hapticNotification("success");
+      setQuizResult({ score: data.score, answered: data.answered });
+      reloadLeaderboard();
+    } catch (err) {
+      console.error("Failed to submit quiz", err);
+      hapticNotification("error");
+      setQuizSubmitError("Could not submit your quiz. Check your connection and try again.");
+    } finally {
+      setIsSubmittingQuiz(false);
+    }
   };
 
   const handleSaveProgress = async () => {
@@ -235,6 +314,21 @@ export function TodayScreen({ onNavigate }) {
         <p className="greeting__date">{todayDateStr}</p>
       </div>
 
+      {notStarted ? (
+        <div className="card-primary countdown-card">
+          <div className="countdown-card__icon-wrap">
+            <Sunrise className="countdown-card__icon" />
+          </div>
+          <p className="countdown-card__days">
+            {daysUntilStart} {daysUntilStart === 1 ? "day" : "days"} left
+          </p>
+          <p className="countdown-card__title">The challenge hasn't started yet</p>
+          <p className="countdown-card__hint">
+            Your reading plan, questions and streak will appear here on {startDateLabel}.
+          </p>
+        </div>
+      ) : (
+        <>
       {/* Streak Section */}
       <div className="card-primary streak-card">
         <div className="streak-card__row">
@@ -380,8 +474,36 @@ export function TodayScreen({ onNavigate }) {
               })}
             </div>
           )}
+
+          {!quizLoading && quizQuestions.length > 0 && (
+            <>
+              <button
+                className="quiz-card__submit"
+                onClick={handleQuizSubmit}
+                disabled={!canSubmitQuiz || isSubmittingQuiz}
+              >
+                {isSubmittingQuiz
+                  ? "Submitting..."
+                  : quizResult && !canSubmitQuiz
+                    ? "Submitted"
+                    : "Submit quiz"}
+              </button>
+              {quizResult && !canSubmitQuiz ? (
+                <p className="quiz-card__result">
+                  You scored {quizResult.score} of {quizResult.answered} — saved to today's
+                  leaderboard.
+                </p>
+              ) : !allQuizAnswered ? (
+                <p className="quiz-card__hint">Answer every question to submit.</p>
+              ) : null}
+            </>
+          )}
+          {quizSubmitError && <p className="quiz-card__error">{quizSubmitError}</p>}
         </div>
       </div>
+
+        </>
+      )}
 
       {/* Top 5 Leaderboard */}
       <div className="card top5">
@@ -398,8 +520,14 @@ export function TodayScreen({ onNavigate }) {
         </div>
 
         <div className="top5__list">
-          {leaderboard.map((entry, idx) => {
-            const isMe = entry.id === profile.id;
+          {leaderboardLoading ? (
+            <div className="top5__empty">Loading leaderboard…</div>
+          ) : top5.length === 0 ? (
+            <div className="top5__empty">
+              {leaderboardError ?? "No readers to show yet."}
+            </div>
+          ) : top5.map((entry, idx) => {
+            const isMe = myId !== null && Number(entry.id) === myId;
             return (
               <div key={entry.id} className="top5__row">
                 <span className={`top5__rank${idx < 3 ? " top5__rank--top" : ""}`}>

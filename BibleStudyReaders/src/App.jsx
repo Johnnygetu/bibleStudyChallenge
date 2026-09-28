@@ -3,6 +3,7 @@ import { BookOpen, Trophy } from "lucide-react";
 import { TodayScreen } from "./components/TodayScreen.jsx";
 import { LeaderboardScreen } from "./components/LeaderboardScreen.jsx";
 import { GeneralProvider } from "./context/GeneralContext.jsx";
+import { LeaderboardProvider } from "./context/LeaderboardContext.jsx";
 import { UserProvider, useUserContext } from "./context/UserContext.jsx";
 import { RegistrationModal } from "./components/RegistrationModal.jsx";
 import "./components/App.css";
@@ -66,9 +67,11 @@ function AppContent() {
 function App() {
   return (
     <GeneralProvider>
-      <UserProvider>
-        <AppContent />
-      </UserProvider>
+      <LeaderboardProvider>
+        <UserProvider>
+          <AppContent />
+        </UserProvider>
+      </LeaderboardProvider>
     </GeneralProvider>
   );
 }
