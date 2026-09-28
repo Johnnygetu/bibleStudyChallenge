@@ -15,6 +15,7 @@ export function LeaderboardScreen() {
   const myId = user?.id != null ? Number(user.id) : null;
   const myIndex = myId == null ? -1 : entries.findIndex((e) => Number(e.id) === myId);
   const myRank = myIndex >= 0 ? myIndex + 1 : null;
+  const isMeEntry = (entry) => myId !== null && Number(entry.id) === myId;
 
   useEffect(() => {
     // The board arrives async — scroll to my row once it has rendered.
@@ -107,13 +108,13 @@ export function LeaderboardScreen() {
       {top3.length > 0 && (
         <div className="podium">
           {top3[1] && (
-            <PodiumColumn entry={top3[1]} rank={2} height={88} />
+            <PodiumColumn entry={top3[1]} rank={2} height={88} isMe={isMeEntry(top3[1])} />
           )}
           {top3[0] && (
-            <PodiumColumn entry={top3[0]} rank={1} height={112} />
+            <PodiumColumn entry={top3[0]} rank={1} height={112} isMe={isMeEntry(top3[0])} />
           )}
           {top3[2] && (
-            <PodiumColumn entry={top3[2]} rank={3} height={76} />
+            <PodiumColumn entry={top3[2]} rank={3} height={76} isMe={isMeEntry(top3[2])} />
           )}
         </div>
       )}
@@ -122,7 +123,7 @@ export function LeaderboardScreen() {
       <div className="ranking-list">
         {restEntries.map((entry, idx) => {
           const rank = idx + 4;
-          const isMe = myId !== null && Number(entry.id) === myId;
+          const isMe = isMeEntry(entry);
           return (
             <div
               key={entry.id}
@@ -160,7 +161,7 @@ export function LeaderboardScreen() {
   );
 }
 
-function PodiumColumn({ entry, rank, height }) {
+function PodiumColumn({ entry, rank, height, isMe }) {
   const variant = rank === 1 ? "gold" : rank === 2 ? "silver" : "bronze";
   const Icon = rank === 1 ? Crown : Trophy;
 
@@ -172,9 +173,10 @@ function PodiumColumn({ entry, rank, height }) {
           <Icon className="podium__badge-icon" fill="currentColor" />
         </div>
       </div>
-      <p className={`podium__name${rank === 1 ? " podium__name--first" : ""}`}>
+      <p className={`podium__name${rank === 1 ? " podium__name--first" : ""}${isMe ? " podium__name--me" : ""}`}>
         {entry.first_name}
       </p>
+      {isMe && <span className="podium__you">(You)</span>}
       <p className="podium__stats">
         {entry.current_streak} streak / {entry.total_quiz_correct} correct
       </p>

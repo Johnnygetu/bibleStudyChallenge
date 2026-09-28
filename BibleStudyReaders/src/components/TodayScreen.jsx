@@ -537,6 +537,7 @@ export function TodayScreen({ onNavigate }) {
                 <div className="top5__identity">
                   <p className={`top5__name${isMe ? " top5__name--me" : ""}`}>
                     {entry.first_name} {entry.last_name ?? ""}
+                    {isMe && <span className="top5__you">(You)</span>}
                   </p>
                   <div className="top5__streak">
                     <Flame className="top5__streak-flame" fill="currentColor" />
