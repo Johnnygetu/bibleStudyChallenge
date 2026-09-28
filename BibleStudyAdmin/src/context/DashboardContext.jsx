@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { dummyReaders } from '@/lib/dummy';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+import { apiUrl } from '@/context/AppProviders';
 
 // Owns the dashboard's data. Totals and recent readers come from the
 // server; the consistency stats (streak / on track / falling behind)
@@ -20,7 +20,7 @@ export function DashboardProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/dashboard`, {
+      const response = await fetch(`${apiUrl}/dashboard`, {
         headers: { Accept: 'application/json' },
       });
       if (!response.ok) {

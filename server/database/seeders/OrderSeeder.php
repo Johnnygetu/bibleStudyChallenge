@@ -12,18 +12,31 @@ class OrderSeeder extends Seeder
     {
         $plan = Plan::where('name', 'Chronological Bible Reading')->firstOrFail();
 
-        $chapterIds = json_decode(
-            file_get_contents(base_path('../data/bible-chronological-order.json')),
-            true
-        );
+        $jsonPath = storage_path('app/public/data/bible-chronological-order.json');
+
+        if (! file_exists($jsonPath)) {
+            $fallback = base_path('../data/bible-chronological-order.json');
+            if (file_exists($fallback)) {
+                $jsonPath = $fallback;
+            } else {
+                $this->command->error("Bible chronological order file not found at: {$jsonPath}");
+                return;
+            }
+        }
+
+        $chapterIds = json_decode(file_get_contents($jsonPath), true);
 
         $rows = array_map(fn($chapterId) => [
             'plan_id'    => $plan->id,
             'chapter_id' => $chapterId,
+            'created_at' => now(),
+            'updated_at' => now(),
         ], $chapterIds);
 
         foreach (array_chunk($rows, 200) as $chunk) {
             DB::table('orders')->insertOrIgnore($chunk);
         }
+
+        $this->command->info('Seeded ' . count($rows) . ' chronological orders.');
     }
 }

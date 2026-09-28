@@ -8,7 +8,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
-#[Signature('app:fetch-chapters {--path= : Where to write the JSON, relative to the app root (default: ../data/bible-chapters.json)}')]
+#[Signature('app:fetch-chapters {--path= : Where to write the JSON, relative to the app root (default: storage/app/public/data/bible-chapters.json)}')]
 #[Description('Write every row from the book_chapters table to a JSON file')]
 class FetchChapters extends Command
 {
@@ -77,7 +77,7 @@ class FetchChapters extends Command
     private function resolvePath(string $path): string
     {
         if ($path === '') {
-            return base_path('../data/bible-chapters.json');
+            return storage_path('app/public/data/bible-chapters.json');
         }
 
         $isAbsolute = str_starts_with($path, '/') || preg_match('#^[A-Za-z]:[\\\\/]#', $path) === 1;

@@ -12,7 +12,18 @@ class BookChapterSeeder extends Seeder
      */
     public function run(): void
     {
-        $jsonPath = base_path('../data/bible-chapters.json');
+        $jsonPath = storage_path('app/public/data/bible-chapters.json');
+
+        if (! file_exists($jsonPath)) {
+            $fallback = base_path('../data/bible-chapters.json');
+            if (file_exists($fallback)) {
+                $jsonPath = $fallback;
+            } else {
+                $this->command->error("Bible chapters file not found at: {$jsonPath}");
+                return;
+            }
+        }
+
         $json = file_get_contents($jsonPath);
         $data = json_decode($json, true);
 
@@ -33,7 +44,7 @@ class BookChapterSeeder extends Seeder
                 ];
             }, $chunk);
 
-            DB::table('book_chapters')->insert($rows);
+            DB::table('book_chapters')->insertOrIgnore($rows);
         }
 
         $this->command->info('Seeded ' . count($chapters) . ' book chapters.');

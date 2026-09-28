@@ -1,8 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-// Same convention as the readers app: the API base URL can be overridden per
-// environment, and falls back to the local Laravel server.
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+import { apiUrl } from '@/context/AppProviders';
 
 // The admin UI was built around the Reader shape of the old dummy data.
 // Map the server's readers rows onto it so the pages stay unchanged.
@@ -33,7 +31,7 @@ export function UsersProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/readers`, {
+      const response = await fetch(`${apiUrl}/readers`, {
         headers: { Accept: 'application/json' },
       });
       if (!response.ok) {
@@ -63,7 +61,7 @@ export function UsersProvider({ children }) {
   // Delete on the server, then refresh the list from the API.
   const removeUser = useCallback(async (id) => {
     try {
-      const response = await fetch(`${API_URL}/readers/${id}`, {
+      const response = await fetch(`${apiUrl}/readers/${id}`, {
         method: 'DELETE',
         headers: { Accept: 'application/json' },
       });

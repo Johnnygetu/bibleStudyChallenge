@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+import { apiUrl } from '@/context/AppProviders';
 
 const LETTERS = ['a', 'b', 'c', 'd'];
 
@@ -41,7 +41,7 @@ export function QuestionsProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/questions`, {
+      const response = await fetch(`${apiUrl}/questions`, {
         headers: { Accept: 'application/json' },
       });
       if (!response.ok) {
@@ -97,12 +97,12 @@ export function QuestionsProvider({ children }) {
 
   // Create a question with its four choices. Throws so the form can show why.
   const addQuestion = useCallback(async (input) => {
-    await request(`${API_URL}/questions`, 'POST', buildPayload(input));
+    await request(`${apiUrl}/questions`, 'POST', buildPayload(input));
     await reload();
   }, [reload]);
 
   const updateQuestion = useCallback(async (id, input) => {
-    await request(`${API_URL}/questions/${id}`, 'PUT', buildPayload(input));
+    await request(`${apiUrl}/questions/${id}`, 'PUT', buildPayload(input));
     await reload();
   }, [reload]);
 
@@ -112,7 +112,7 @@ export function QuestionsProvider({ children }) {
     if (deletingId !== null) return;
     setDeletingId(id);
     try {
-      const response = await fetch(`${API_URL}/questions/${id}`, {
+      const response = await fetch(`${apiUrl}/questions/${id}`, {
         method: 'DELETE',
         headers: { Accept: 'application/json' },
       });

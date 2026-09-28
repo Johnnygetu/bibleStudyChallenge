@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+import { apiUrl } from '@/context/AppProviders';
 
 // Owns the leaderboard: personal rankings (sum of the reader's scores)
 // and group rankings (sum of each group's members' scores), fetched from
@@ -17,7 +17,7 @@ export function LeaderboardProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/leaderboard`, {
+      const response = await fetch(`${apiUrl}/leaderboard`, {
         headers: { Accept: 'application/json' },
       });
       if (!response.ok) {

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+import { apiUrl } from '@/context/AppProviders';
 
 // Owns the reading-progress data: per-reader days done/missed and streaks,
 // computed on the server from the reading plan's schedule (lag logic) and
@@ -16,7 +16,7 @@ export function ProgressProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/progress`, {
+      const response = await fetch(`${apiUrl}/progress`, {
         headers: { Accept: 'application/json' },
       });
       if (!response.ok) {

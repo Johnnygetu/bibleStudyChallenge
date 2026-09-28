@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+import { apiUrl } from '@/context/AppProviders';
 
 // Owns everything about the groups list: the fetch, its loading/error
 // states, and the create/delete mutations the Groups page performs.
@@ -15,7 +15,7 @@ export function GroupsProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/groups`, {
+      const response = await fetch(`${apiUrl}/groups`, {
         headers: { Accept: 'application/json' },
       });
       if (!response.ok) {
@@ -37,7 +37,7 @@ export function GroupsProvider({ children }) {
 
   // Create a group. Throws so the form can show why it failed.
   const addGroup = useCallback(async ({ name }) => {
-    const response = await fetch(`${API_URL}/groups`, {
+    const response = await fetch(`${apiUrl}/groups`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -54,7 +54,7 @@ export function GroupsProvider({ children }) {
 
   // Create `count` groups and randomly distribute all readers across them.
   const assignMembers = useCallback(async ({ count }) => {
-    const response = await fetch(`${API_URL}/groups/assign-random`, {
+    const response = await fetch(`${apiUrl}/groups/assign-random`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -71,7 +71,7 @@ export function GroupsProvider({ children }) {
 
   const deleteGroup = useCallback(async (id) => {
     try {
-      const response = await fetch(`${API_URL}/groups/${id}`, {
+      const response = await fetch(`${apiUrl}/groups/${id}`, {
         method: 'DELETE',
         headers: { Accept: 'application/json' },
       });
@@ -96,7 +96,7 @@ export function GroupsProvider({ children }) {
     setDetailLoading(true);
     setDetailError(null);
     try {
-      const response = await fetch(`${API_URL}/groups/${id}`, {
+      const response = await fetch(`${apiUrl}/groups/${id}`, {
         headers: { Accept: 'application/json' },
       });
       if (!response.ok) {
@@ -114,7 +114,7 @@ export function GroupsProvider({ children }) {
   // Move a reader from the open group to another group, then refresh
   // both the list counts and the open detail view.
   const swapMember = useCallback(async ({ groupId, readerId, targetGroupId }) => {
-    const response = await fetch(`${API_URL}/groups/${groupId}/swap`, {
+    const response = await fetch(`${apiUrl}/groups/${groupId}/swap`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -132,7 +132,7 @@ export function GroupsProvider({ children }) {
 
   // Promote or demote a member as group leader, then refresh the open detail.
   const setLeader = useCallback(async ({ groupId, readerId, isLeader }) => {
-    const response = await fetch(`${API_URL}/groups/${groupId}/members/${readerId}/leader`, {
+    const response = await fetch(`${apiUrl}/groups/${groupId}/members/${readerId}/leader`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
