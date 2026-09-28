@@ -1,14 +1,11 @@
 import { useState, useEffect } from "react";
-import { Flame, BookOpen, Check, ChevronRight, Sunrise, Trophy, Lock, Brain } from "lucide-react";
+import { Flame, BookOpen, Check, ChevronRight, Sunrise, Trophy, Lock, Brain, AlertCircle } from "lucide-react";
 import { useGeneralContext } from "@/context/GeneralContext";
 import { useUserContext } from "@/context/UserContext";
 import {
   TODAY_GROUPS,
   COMPLETED_CHAPTERS,
-  QUIZ_QUESTIONS,
   LEADERBOARD,
-  CURRENT_DAY,
-  TOTAL_DAYS,
 } from "@/lib/data";
 import { hapticImpact, hapticNotification } from "@/lib/telegram";
 import { ProgressBar, Avatar } from "@/components/ui";
@@ -27,6 +24,11 @@ export function TodayScreen({ onNavigate }) {
   const [apiMetadata, setApiMetadata] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Quiz questions fetched from the API for today's chapters
+  const [quizQuestions, setQuizQuestions] = useState([]);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [hasQuestions, setHasQuestions] = useState(true);
   const [saveMessage, setSaveMessage] = useState(null);
 
   const today = new Date();
@@ -84,11 +86,39 @@ export function TodayScreen({ onNavigate }) {
           
           setTodayGroups(Object.values(grouped));
           setCompletedLabels(completed);
+
+          // --- Fetch questions for today's chapter IDs ---
+          const chapterIds = data.readings.map(r => r.chapter_id);
+          if (chapterIds.length > 0) {
+            fetchQuestions(chapterIds);
+          } else {
+            setHasQuestions(false);
+          }
         }
       } catch (err) {
         console.error("Failed to fetch daily readings", err);
       } finally {
         setIsLoading(false);
+      }
+    }
+
+    async function fetchQuestions(chapterIds) {
+      setQuizLoading(true);
+      try {
+        const ids = chapterIds.join(',');
+        const res = await fetch(`${apiUrl}/questions/by-chapters?chapter_ids=${ids}`);
+        if (res.ok) {
+          const payload = await res.json();
+          setQuizQuestions(payload.questions || []);
+          setHasQuestions(payload.has_questions ?? false);
+        } else {
+          setHasQuestions(false);
+        }
+      } catch (err) {
+        console.error("Failed to fetch quiz questions", err);
+        setHasQuestions(false);
+      } finally {
+        setQuizLoading(false);
       }
     }
     
@@ -110,12 +140,13 @@ export function TodayScreen({ onNavigate }) {
     });
   };
 
-  const handleQuizAnswer = (questionId, optionKey) => {
+  const handleQuizAnswer = (questionId, answerId) => {
     if (quizAnswers[questionId]) return;
     hapticImpact("medium");
-    const q = QUIZ_QUESTIONS.find((item) => item.id === questionId);
-    setQuizAnswers(prev => ({ ...prev, [questionId]: optionKey }));
-    hapticNotification(q && q.correct_option === optionKey ? "success" : "error");
+    const q = quizQuestions.find((item) => item.id === questionId);
+    const selectedAnswer = q?.answers?.find(a => a.id === answerId);
+    setQuizAnswers(prev => ({ ...prev, [questionId]: answerId }));
+    hapticNotification(selectedAnswer?.correct_answer ? "success" : "error");
   };
 
   const handleSaveProgress = async () => {
@@ -210,10 +241,10 @@ export function TodayScreen({ onNavigate }) {
           <div>
             <div className="streak-card__label">
               <Flame className="streak-card__flame" fill="currentColor" />
-              <span>{profile.current_streak} Day Streak</span>
+              <span>{apiMetadata?.current_streak ?? 0} Day Streak</span>
             </div>
             <p className="streak-card__hint">
-              {profile.current_streak > 0
+              {(apiMetadata?.current_streak ?? 0) > 0
               ? "You're on fire! Keep reading daily."
               : "Read today to start your streak!"}
             </p>
@@ -221,7 +252,7 @@ export function TodayScreen({ onNavigate }) {
           <div className="streak-card__best">
             <span className="streak-card__best-label">Best</span>
             <p className="streak-card__best-value">
-              {Math.max(profile.current_streak, profile.longest_streak)} days
+              {apiMetadata?.best_streak ?? 0} days
             </p>
           </div>
         </div>
@@ -232,7 +263,7 @@ export function TodayScreen({ onNavigate }) {
         <div className="reading-card__head">
           <Sunrise className="reading-card__sun" />
           <h2 className="reading-card__title">Today's Reading</h2>
-          <span className="reading-card__day">Day {CURRENT_DAY} of {TOTAL_DAYS}</span>
+          <span className="reading-card__day">Day {apiMetadata?.current_day ?? '–'} of {apiMetadata?.total_days ?? '–'}</span>
         </div>
 
         {apiMetadata?.is_catch_up_mode && (
@@ -282,7 +313,7 @@ export function TodayScreen({ onNavigate }) {
 
       {/* Today's Quiz Section */}
       <div className="quiz-section">
-        {!allDone && (
+        {!allDone && hasQuestions && (
           <div className="quiz-lock">
             <Lock className="quiz-lock__icon" />
             <p className="quiz-lock__text">Complete today's reading to unlock</p>
@@ -294,50 +325,61 @@ export function TodayScreen({ onNavigate }) {
             <h2 className="quiz-card__title">Today's Quiz</h2>
           </div>
 
-          <div className="quiz-list">
-            {(allDone ? QUIZ_QUESTIONS : QUIZ_QUESTIONS.slice(0, 1)).map((q, idx) => {
-              const answer = quizAnswers[q.id];
-              const options = [
-                { key: "a", text: q.option_a },
-                { key: "b", text: q.option_b },
-                { key: "c", text: q.option_c },
-                { key: "d", text: q.option_d },
-              ];
-              return (
-                <div key={q.id} className="quiz-item">
-                  <p className="quiz-item__question">
-                    <span className="quiz-item__number">{idx + 1}.</span>
-                    {q.question_text}
-                  </p>
-                  <div className="quiz-item__options">
-                    {options.map(({ key, text }) => {
-                      const isSelected = answer === key;
-                      const isCorrectOpt = q.correct_option === key;
-                      const showCorrect = answer && isCorrectOpt;
-                      const showWrong = answer && isSelected && !isCorrectOpt;
+          {quizLoading ? (
+            <div className="quiz-list">
+              <div className="skeleton" style={{ height: '1.2rem', width: '80%', marginBottom: '0.75rem' }} />
+              <div className="skeleton" style={{ height: '3rem', width: '100%', borderRadius: '0.75rem', marginBottom: '0.5rem' }} />
+              <div className="skeleton" style={{ height: '3rem', width: '100%', borderRadius: '0.75rem' }} />
+            </div>
+          ) : !hasQuestions || quizQuestions.length === 0 ? (
+            <div className="quiz-empty">
+              <AlertCircle className="quiz-empty__icon" />
+              <p className="quiz-empty__text">There are no questions for today's reading chapters.</p>
+              <p className="quiz-empty__hint">Questions will appear here once they are added for the chapters you're reading today.</p>
+            </div>
+          ) : (
+            <div className="quiz-list">
+              {(allDone ? quizQuestions : quizQuestions.slice(0, 1)).map((q, idx) => {
+                const selectedAnswerId = quizAnswers[q.id];
+                return (
+                  <div key={q.id} className="quiz-item">
+                    <p className="quiz-item__question">
+                      <span className="quiz-item__number">{idx + 1}.</span>
+                      {q.question_text}
+                    </p>
+                    {q.chapter && (
+                      <p className="quiz-item__chapter">{q.chapter.book} {q.chapter.chapter_number}</p>
+                    )}
+                    <div className="quiz-item__options">
+                      {(q.answers || []).map((ans) => {
+                        const isSelected = selectedAnswerId === ans.id;
+                        const isCorrectOpt = ans.correct_answer;
+                        const showCorrect = selectedAnswerId && isCorrectOpt;
+                        const showWrong = selectedAnswerId && isSelected && !isCorrectOpt;
 
-                      let optionClass = "quiz-option";
-                      if (showCorrect) optionClass += " quiz-option--correct";
-                      else if (showWrong) optionClass += " quiz-option--wrong";
-                      else if (isSelected) optionClass += " quiz-option--selected";
+                        let optionClass = "quiz-option";
+                        if (showCorrect) optionClass += " quiz-option--correct";
+                        else if (showWrong) optionClass += " quiz-option--wrong";
+                        else if (isSelected) optionClass += " quiz-option--selected";
 
-                      return (
-                        <button
-                          key={key}
-                          disabled={!!answer}
-                          onClick={() => handleQuizAnswer(q.id, key)}
-                          className={optionClass}
-                        >
-                          <span>{text}</span>
-                          {showCorrect && <Check className="quiz-option__check" />}
-                        </button>
-                      );
-                    })}
+                        return (
+                          <button
+                            key={ans.id}
+                            disabled={!!selectedAnswerId}
+                            onClick={() => handleQuizAnswer(q.id, ans.id)}
+                            className={optionClass}
+                          >
+                            <span>{ans.answer_text}</span>
+                            {showCorrect && <Check className="quiz-option__check" />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
