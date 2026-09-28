@@ -12,16 +12,11 @@ class BookChapterSeeder extends Seeder
      */
     public function run(): void
     {
-        $jsonPath = storage_path('app/public/data/bible-chapters.json');
+        $jsonPath = database_path('data/bible-chapters.json');
 
         if (! file_exists($jsonPath)) {
-            $fallback = base_path('../data/bible-chapters.json');
-            if (file_exists($fallback)) {
-                $jsonPath = $fallback;
-            } else {
-                $this->command->error("Bible chapters file not found at: {$jsonPath}");
-                return;
-            }
+            $this->command->error("Bible chapters file not found at: {$jsonPath}");
+            return;
         }
 
         $json = file_get_contents($jsonPath);
