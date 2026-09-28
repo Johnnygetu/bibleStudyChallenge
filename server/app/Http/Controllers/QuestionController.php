@@ -95,4 +95,40 @@ class QuestionController extends Controller
 
         return response(null, 204);
     }
+
+    /**
+     * Return questions for a given set of chapter IDs.
+     *
+     * GET /api/questions/by-chapters?chapter_ids=1,2,3
+     */
+    public function byChapters(Request $request)
+    {
+        $request->validate([
+            'chapter_ids' => 'required|string',
+        ]);
+
+        $chapterIds = array_filter(
+            array_map('intval', explode(',', $request->query('chapter_ids')))
+        );
+
+        if (empty($chapterIds)) {
+            return response()->json([
+                'questions' => [],
+                'has_questions' => false,
+                'message' => 'No chapter IDs provided.',
+            ]);
+        }
+
+        $questions = Question::with(['chapter', 'answers'])
+            ->whereIn('chapter_id', $chapterIds)
+            ->get();
+
+        return response()->json([
+            'questions' => $questions,
+            'has_questions' => $questions->isNotEmpty(),
+            'message' => $questions->isEmpty()
+                ? 'There are no questions for today\'s reading chapters.'
+                : $questions->count() . ' question(s) found for today\'s reading.',
+        ]);
+    }
 }

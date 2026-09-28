@@ -155,6 +155,14 @@ class ReaderController extends Controller
             }
         }
 
+        // Day and streak numbers for the reader-facing UI
+        $totalDays = count($plan->getSchedule());
+        $currentDayNumber = $lagData['current_day_number'] ?? 1;
+
+        $latestStreak = $reader->streaks()->latest('id')->first();
+        $currentStreak = $latestStreak?->count ?? 0;
+        $bestStreak = $reader->streaks()->max('count') ?? 0;
+
         return response([
             'reader_id' => $reader->id,
             'plan_id' => $plan->id,
@@ -164,6 +172,10 @@ class ReaderController extends Controller
             'extra_verses_added' => $extraVersesAdded,
             'verses_assigned' => $versesUsed,
             'chapters_count' => count($readings),
+            'current_day' => $currentDayNumber,
+            'total_days' => $totalDays,
+            'current_streak' => $currentStreak,
+            'best_streak' => max($currentStreak, $bestStreak),
             'readings' => $readings,
         ]);
     }
