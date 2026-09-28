@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\Plan;
 use App\Models\Reader;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -22,12 +23,31 @@ class ReaderController extends Controller
             'name' => 'required|string',
             // Optional for now: the chat id comes from a Telegram mini app
             // launch and may only be attached on a later visit.
-            'chat_id' => 'nullable|integer|unique:readers,chat_id',
+            'chat_id' => 'nullable|integer',
         ]);
 
-        $reader = Reader::create($data);
+        // A chat id already owned by another reader must never block sign-up:
+        // drop it, create the account anyway, and let a later launch attach
+        // a free one. The response carries chat_id = null so the client can
+        // tell it was skipped.
+        if (isset($data['chat_id']) && Reader::where('chat_id', $data['chat_id'])->exists()) {
+            unset($data['chat_id']);
+        }
+
+        try {
+            $reader = Reader::create($data);
+        } catch (UniqueConstraintViolationException $e) {
+            // Lost the race for that chat id — same outcome: register without it.
+            if (! isset($data['chat_id'])) {
+                throw $e;
+            }
+
+            unset($data['chat_id']);
+            $reader = Reader::create($data);
+        }
+
         // Reload so the response always carries every column — including a
-        // chat id that was absent from the request (optional for now).
+        // chat id that was skipped or absent from the request.
         $reader->refresh();
 
         return response($reader, 201);

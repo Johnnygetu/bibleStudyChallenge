@@ -144,3 +144,48 @@
 .boot-error__retry:hover {
   background-color: var(--ink-600);
 }
+
+/* Registration success notice */
+
+.app-notice {
+  position: fixed;
+  top: calc(0.75rem + env(safe-area-inset-top));
+  left: 0.75rem;
+  right: 0.75rem;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background-color: rgba(35, 123, 50, 0.95);
+  border: 1px solid var(--success-400);
+  color: #fff;
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  font-size: 0.875rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  animation: app-notice-in 0.2s ease;
+}
+
+.app-notice__close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.125rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+@keyframes app-notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

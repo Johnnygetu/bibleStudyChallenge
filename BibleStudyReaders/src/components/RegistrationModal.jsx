@@ -53,8 +53,10 @@ export function RegistrationModal() {
     setSubmitting(true);
     setError("");
     try {
-      // Creates the Telegram user in the backend, then closes the modal.
+      // Creates the reader in the backend; App then closes this modal and
+      // shows the "you're registered" notice from the user context.
       await register(trimmed, normalizePhone(trimmedPhone));
+      hapticNotification("success");
     } catch (err) {
       setError(err?.message || "Something went wrong. Please try again.");
       hapticNotification("error");
