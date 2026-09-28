@@ -44,20 +44,33 @@ class ReaderStoreTest extends TestCase
         ]);
     }
 
-    public function test_rejects_duplicate_chat_id(): void
+    public function test_skips_taken_chat_id_and_registers_anyway(): void
     {
-        Reader::create([
+        $existing = Reader::create([
             'name' => 'First Reader',
             'phone_number' => '+251922222222',
             'chat_id' => 900000002,
         ]);
 
-        $this->postJson('/api/readers', [
+        $response = $this->postJson('/api/readers', [
             'name' => 'Second Reader',
             'phone_number' => '+251933333333',
             'chat_id' => 900000002,
-        ])->assertStatus(422)
-            ->assertJsonValidationErrors('chat_id');
+        ]);
+
+        // Sign-up succeeds even though the chat id was already taken.
+        $response->assertStatus(201);
+
+        // The skipped id comes back as null so the client can tell.
+        $this->assertDatabaseHas('readers', [
+            'id' => $response->json('id'),
+            'name' => 'Second Reader',
+            'chat_id' => null,
+        ]);
+
+        // The id stays with the reader that already owns it.
+        $this->assertDatabaseHas('readers', ['id' => $existing->id, 'chat_id' => 900000002]);
+        $this->assertSame(1, Reader::where('chat_id', 900000002)->count());
     }
 
     public function test_requires_name_and_phone_number(): void
