@@ -45,7 +45,7 @@ export function RegistrationModal() {
     if (!trimmed || !trimmedPhone || submitting) return;
 
     if (!PHONE_INPUT_PATTERN.test(trimmedPhone)) {
-      setError("Enter a valid phone number, e.g. +1 234 567 8901.");
+      setError("Enter a valid phone number, e.g. 0912345678.");
       hapticNotification("error");
       return;
     }
@@ -106,7 +106,7 @@ export function RegistrationModal() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="field__input"
-                placeholder="+1 234 567 8901"
+                placeholder="0912345678"
               />
             </div>
 
