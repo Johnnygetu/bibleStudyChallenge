@@ -5,7 +5,9 @@ import { LeaderboardScreen } from "./components/LeaderboardScreen.jsx";
 import { GeneralProvider } from "./context/GeneralContext.jsx";
 import { LeaderboardProvider } from "./context/LeaderboardContext.jsx";
 import { UserProvider, useUserContext } from "./context/UserContext.jsx";
+import { DateOverrideProvider } from "./context/DateOverrideContext.jsx";
 import { RegistrationModal } from "./components/RegistrationModal.jsx";
+import { TestDateBar } from "./components/TestDateBar.jsx";
 import "./components/App.css";
 
 function AppContent() {
@@ -39,6 +41,8 @@ function AppContent() {
         {activeTab === "leaderboard" && <LeaderboardScreen />}
       </main>
 
+      <TestDateBar />
+
       <nav className="bottom-nav">
         <div className="bottom-nav__inner">
           {tabs.map((tab) => {
@@ -66,13 +70,13 @@ function AppContent() {
 
 function App() {
   return (
-    <GeneralProvider>
-      <LeaderboardProvider>
+    <DateOverrideProvider>
+      <GeneralProvider>
         <UserProvider>
           <AppContent />
         </UserProvider>
-      </LeaderboardProvider>
-    </GeneralProvider>
+      </GeneralProvider>
+    </DateOverrideProvider>
   );
 }
 

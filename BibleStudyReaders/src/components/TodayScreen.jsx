@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Flame, BookOpen, Check, ChevronRight, Sunrise, Trophy, Lock, Brain, AlertCircle } from "lucide-react";
 import { useGeneralContext } from "@/context/GeneralContext";
 import { useUserContext } from "@/context/UserContext";
+import { useDateOverride } from "@/context/DateOverrideContext";
 import {
   TODAY_GROUPS,
   COMPLETED_CHAPTERS,
@@ -14,6 +15,7 @@ import "./TodayScreen.css";
 
 export function TodayScreen({ onNavigate }) {
   const { profile, apiUrl } = useGeneralContext();
+  const { overrideDate, buildUrl } = useDateOverride();
   // The registered name lives in localStorage (saved by the registration modal).
   const { user } = useUserContext();
   // Local-only state; nothing persists until integration starts.
@@ -24,6 +26,7 @@ export function TodayScreen({ onNavigate }) {
   const [apiMetadata, setApiMetadata] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [fetchKey, setFetchKey] = useState(0);
 
   // Quiz submission: posts the day's answers and stores the score on the server.
   const [isSubmittingQuiz, setIsSubmittingQuiz] = useState(false);
@@ -35,7 +38,9 @@ export function TodayScreen({ onNavigate }) {
   const [quizLoading, setQuizLoading] = useState(false);
   const [hasQuestions, setHasQuestions] = useState(true);
   const [saveMessage, setSaveMessage] = useState(null);
+  const [leaderboard, setLeaderboard] = useState([]);
 
+  const today = overrideDate ? new Date(overrideDate + "T00:00:00") : new Date();
   // Live leaderboard from the backend (Top 5 of the personal board).
   const {
     entries: leaderboardEntries,
@@ -64,7 +69,7 @@ export function TodayScreen({ onNavigate }) {
     
     async function fetchReadings() {
       try {
-        const res = await fetch(`${apiUrl}/readers/${user.id}/plans/1/daily-readings`);
+        const res = await fetch(buildUrl(`${apiUrl}/readers/${user.id}/plans/1/daily-readings`));
         
         // If the database was cleared, the backend will return 404 (Not Found).
         // We should clear the local storage and force a reload to show the registration screen.
@@ -129,7 +134,7 @@ export function TodayScreen({ onNavigate }) {
       setQuizLoading(true);
       try {
         const ids = chapterIds.join(',');
-        const res = await fetch(`${apiUrl}/questions/by-chapters?chapter_ids=${ids}`);
+        const res = await fetch(buildUrl(`${apiUrl}/questions/by-chapters?chapter_ids=${ids}`));
         if (res.ok) {
           const payload = await res.json();
           setQuizQuestions(payload.questions || []);
@@ -146,7 +151,30 @@ export function TodayScreen({ onNavigate }) {
     }
     
     fetchReadings();
-  }, [user, apiUrl]);
+  }, [user, apiUrl, buildUrl, fetchKey]);
+
+  useEffect(() => {
+    async function fetchLeaderboard() {
+      try {
+        const res = await fetch(`${apiUrl}/leaderboard`);
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data.personal.slice(0, 5).map(p => ({
+            id: p.reader_id,
+            first_name: p.reader_name,
+            last_name: "",
+            current_streak: p.current_streak,
+            score: p.total_score,
+            photo_url: null,
+          }));
+          setLeaderboard(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to fetch leaderboard", err);
+      }
+    }
+    fetchLeaderboard();
+  }, [apiUrl]);
 
   // Countdown view: while the plan's start date is in the future we show an
   // "X days left" card instead of the reading plan, quiz and streak sections.
@@ -249,7 +277,7 @@ export function TodayScreen({ onNavigate }) {
 
     try {
       hapticImpact("medium");
-      const res = await fetch(`${apiUrl}/readers/${user.id}/plans/1/save-progress`, {
+      const res = await fetch(buildUrl(`${apiUrl}/readers/${user.id}/plans/1/save-progress`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chapter_id: lastChapter.chapter_id })
@@ -258,6 +286,8 @@ export function TodayScreen({ onNavigate }) {
         hapticNotification("success");
         setSaveMessage({ type: "success", text: "Progress saved successfully!" });
         setTimeout(() => setSaveMessage(null), 3000);
+        // Re-fetch daily readings so the UI reflects the newly saved progress
+        setFetchKey(k => k + 1);
       } else {
         hapticNotification("error");
         setSaveMessage({ type: "error", text: "Failed to save progress." });
@@ -520,6 +550,8 @@ export function TodayScreen({ onNavigate }) {
         </div>
 
         <div className="top5__list">
+          {leaderboard.map((entry, idx) => {
+            const isMe = entry.id === user?.id;
           {leaderboardLoading ? (
             <div className="top5__empty">Loading leaderboard…</div>
           ) : top5.length === 0 ? (

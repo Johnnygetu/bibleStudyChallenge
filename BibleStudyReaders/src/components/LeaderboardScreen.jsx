@@ -1,5 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Flame, Trophy, Crown, Brain } from "lucide-react";
+import { useGeneralContext } from "@/context/GeneralContext";
+import { useUserContext } from "@/context/UserContext";
 import { useUserContext } from "@/context/UserContext";
 import { useLeaderboardContext } from "@/context/LeaderboardContext";
 import { Avatar } from "@/components/ui";
@@ -7,24 +9,50 @@ import ayatLogo from "@/assets/ayat-logo.png";
 import "./LeaderboardScreen.css";
 
 export function LeaderboardScreen() {
-  // The registered reader's id marks their own row with "(You)".
+  const { apiUrl } = useGeneralContext();
   const { user } = useUserContext();
-  const { entries, loading, error } = useLeaderboardContext();
   const myEntryRef = useRef(null);
 
-  const myId = user?.id != null ? Number(user.id) : null;
-  const myIndex = myId == null ? -1 : entries.findIndex((e) => Number(e.id) === myId);
+  const [entries, setEntries] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchLeaderboard() {
+      try {
+        const res = await fetch(`${apiUrl}/leaderboard`);
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data.personal.map(p => ({
+            id: p.reader_id,
+            first_name: p.reader_name,
+            last_name: "",
+            current_streak: p.current_streak,
+            score: p.total_score,
+            photo_url: null,
+          }));
+          setEntries(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to fetch leaderboard", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchLeaderboard();
+  }, [apiUrl]);
+
+  const myIndex = entries.findIndex((e) => e.id === user?.id);
   const myRank = myIndex >= 0 ? myIndex + 1 : null;
   const isMeEntry = (entry) => myId !== null && Number(entry.id) === myId;
 
   useEffect(() => {
-    // The board arrives async — scroll to my row once it has rendered.
-    if (loading) return;
-    const timer = setTimeout(() => {
-      myEntryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [loading, entries]);
+    if (!isLoading) {
+      const timer = setTimeout(() => {
+        myEntryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
 
   const top3 = entries.slice(0, 3);
   const restEntries = entries.slice(3);
@@ -97,8 +125,8 @@ export function LeaderboardScreen() {
             </div>
             <div className="my-stats__stat">
               <Brain className="my-stats__stat-icon" />
-              <span className="my-stats__stat-value">{myEntry.total_quiz_correct}</span>
-              <span className="my-stats__stat-label">Correct</span>
+              <span className="my-stats__stat-value">{myEntry.score}</span>
+              <span className="my-stats__stat-label">Score</span>
             </div>
           </div>
         </div>
@@ -123,7 +151,7 @@ export function LeaderboardScreen() {
       <div className="ranking-list">
         {restEntries.map((entry, idx) => {
           const rank = idx + 4;
-          const isMe = isMeEntry(entry);
+          const isMe = entry.id === user?.id;
           return (
             <div
               key={entry.id}
@@ -146,11 +174,11 @@ export function LeaderboardScreen() {
                   </span>
                   <span className="ranking-row__stat">
                     <Trophy className="ranking-row__stat-icon" />
-                    {entry.total_quiz_correct}
+                    {entry.score}
                   </span>
                 </div>
               </div>
-              <span className="ranking-row__score">{entry.score}</span>
+              {/* <span className="ranking-row__score">{entry.score}</span> */}
             </div>
           );
         })}
@@ -178,7 +206,7 @@ function PodiumColumn({ entry, rank, height, isMe }) {
       </p>
       {isMe && <span className="podium__you">(You)</span>}
       <p className="podium__stats">
-        {entry.current_streak} streak / {entry.total_quiz_correct} correct
+        {entry.current_streak} streak / {entry.score} score
       </p>
       <div
         className={`podium__bar podium__bar--${variant}`}
