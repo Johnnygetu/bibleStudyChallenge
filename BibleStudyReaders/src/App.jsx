@@ -4,7 +4,9 @@ import { TodayScreen } from "./components/TodayScreen.jsx";
 import { LeaderboardScreen } from "./components/LeaderboardScreen.jsx";
 import { GeneralProvider } from "./context/GeneralContext.jsx";
 import { UserProvider, useUserContext } from "./context/UserContext.jsx";
+import { DateOverrideProvider } from "./context/DateOverrideContext.jsx";
 import { RegistrationModal } from "./components/RegistrationModal.jsx";
+import { TestDateBar } from "./components/TestDateBar.jsx";
 import "./components/App.css";
 
 function AppContent() {
@@ -24,6 +26,8 @@ function AppContent() {
         {activeTab === "today" && <TodayScreen onNavigate={(tab) => setActiveTab(tab)} />}
         {activeTab === "leaderboard" && <LeaderboardScreen />}
       </main>
+
+      <TestDateBar />
 
       <nav className="bottom-nav">
         <div className="bottom-nav__inner">
@@ -52,11 +56,13 @@ function AppContent() {
 
 function App() {
   return (
-    <GeneralProvider>
-      <UserProvider>
-        <AppContent />
-      </UserProvider>
-    </GeneralProvider>
+    <DateOverrideProvider>
+      <GeneralProvider>
+        <UserProvider>
+          <AppContent />
+        </UserProvider>
+      </GeneralProvider>
+    </DateOverrideProvider>
   );
 }
 
