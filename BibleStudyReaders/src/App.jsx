@@ -3,6 +3,7 @@ import { BookOpen, Trophy } from "lucide-react";
 import { TodayScreen } from "./components/TodayScreen.jsx";
 import { LeaderboardScreen } from "./components/LeaderboardScreen.jsx";
 import { GeneralProvider } from "./context/GeneralContext.jsx";
+import { LeaderboardProvider } from "./context/LeaderboardContext.jsx";
 import { UserProvider, useUserContext } from "./context/UserContext.jsx";
 import { DateOverrideProvider } from "./context/DateOverrideContext.jsx";
 import { RegistrationModal } from "./components/RegistrationModal.jsx";
@@ -12,7 +13,7 @@ import "./components/App.css";
 function AppContent() {
   const [activeTab, setActiveTab] = useState("today");
   // First open: no registered user yet -> show the registration modal.
-  const { isRegistered } = useUserContext();
+  const { isRegistered, notice, dismissNotice } = useUserContext();
 
   const tabs = [
     { id: "today", label: "Today", icon: BookOpen },
@@ -21,6 +22,19 @@ function AppContent() {
 
   return (
     <div className="app-shell">
+      {notice && (
+        <div className="app-notice" role="status">
+          <span>{notice}</span>
+          <button
+            type="button"
+            className="app-notice__close"
+            onClick={dismissNotice}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
       {!isRegistered && <RegistrationModal />}
       <main className="app-main">
         {activeTab === "today" && <TodayScreen onNavigate={(tab) => setActiveTab(tab)} />}

@@ -45,7 +45,7 @@ export function RegistrationModal() {
     if (!trimmed || !trimmedPhone || submitting) return;
 
     if (!PHONE_INPUT_PATTERN.test(trimmedPhone)) {
-      setError("Enter a valid phone number, e.g. +1 234 567 8901.");
+      setError("Enter a valid phone number, e.g. 0912345678.");
       hapticNotification("error");
       return;
     }
@@ -53,8 +53,10 @@ export function RegistrationModal() {
     setSubmitting(true);
     setError("");
     try {
-      // Creates the Telegram user in the backend, then closes the modal.
+      // Creates the reader in the backend; App then closes this modal and
+      // shows the "you're registered" notice from the user context.
       await register(trimmed, normalizePhone(trimmedPhone));
+      hapticNotification("success");
     } catch (err) {
       setError(err?.message || "Something went wrong. Please try again.");
       hapticNotification("error");
@@ -104,7 +106,7 @@ export function RegistrationModal() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="field__input"
-                placeholder="+1 234 567 8901"
+                placeholder="0912345678"
               />
             </div>
 
