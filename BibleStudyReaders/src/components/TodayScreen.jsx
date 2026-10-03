@@ -3,11 +3,6 @@ import { Flame, BookOpen, Check, ChevronRight, Sunrise, Trophy, Lock, Brain, Ale
 import { useGeneralContext } from "@/context/GeneralContext";
 import { useUserContext } from "@/context/UserContext";
 import { useDateOverride } from "@/context/DateOverrideContext";
-import {
-  TODAY_GROUPS,
-  COMPLETED_CHAPTERS,
-} from "@/lib/data";
-import { useLeaderboardContext } from "@/context/LeaderboardContext";
 import { hapticImpact, hapticNotification } from "@/lib/telegram";
 import { getReaderDisplayName } from "@/lib/reader";
 import { ProgressBar, Avatar } from "@/components/ui";
@@ -76,19 +71,9 @@ export function TodayScreen({ onNavigate }) {
   const [readingError, setReadingError] = useState(null);
   const [leaderboardError, setLeaderboardError] = useState(null);
   const [leaderboardFetchKey, setLeaderboardFetchKey] = useState(0);
-
   const today = overrideDate ? new Date(overrideDate + "T00:00:00") : new Date();
-  // Live leaderboard from the backend (Top 5 of the personal board).
-  const {
-    entries: leaderboardEntries,
-    loading: leaderboardLoading,
-    error: leaderboardError,
-    reload: reloadLeaderboard,
-  } = useLeaderboardContext();
-  const top5 = leaderboardEntries.slice(0, 5);
+  const top5 = leaderboard.slice(0, 5);
   const myId = user?.id != null ? Number(user.id) : null;
-
-  const today = new Date();
 
   useEffect(() => {
     // If the local storage has a user but is missing the ID (from before we updated the code)
@@ -124,24 +109,22 @@ export function TodayScreen({ onNavigate }) {
           throw new Error("The server returned an invalid daily reading response.");
         }
 
-        if (res.ok) {
-          const data = await res.json();
-          setApiMetadata(data);
+        setApiMetadata(data);
 
           // The plan's start date hasn't arrived yet — show an "X days left"
           // countdown instead of the readings, questions and streak details.
-          if ((data.days_until_start ?? 0) > 0) {
-            setTodayGroups([]);
-            setCompletedLabels(new Set());
-            setHasQuestions(false);
-            return;
-          }
+        if ((data.days_until_start ?? 0) > 0) {
+          setTodayGroups([]);
+          setCompletedLabels(new Set());
+          setHasQuestions(false);
+          return;
+        }
           
-          // Group the readings by book for the UI
-          const grouped = {};
-          const completed = new Set();
+        // Group the readings by book for the UI
+        const grouped = {};
+        const completed = new Set();
           
-          data.readings.forEach(reading => {
+        data.readings.forEach(reading => {
             const label = `${reading.book} ${reading.chapter_number}`;
             if (!grouped[reading.book]) {
               grouped[reading.book] = {
@@ -155,10 +138,10 @@ export function TodayScreen({ onNavigate }) {
             if (reading.is_completed) {
               completed.add(label);
             }
-          });
+        });
           
-          setTodayGroups(Object.values(grouped));
-          setCompletedLabels(completed);
+        setTodayGroups(Object.values(grouped));
+        setCompletedLabels(completed);
 
         const chapterIds = data.readings.map((reading) => reading.chapter_id);
         if (chapterIds.length > 0) {
@@ -253,7 +236,10 @@ export function TodayScreen({ onNavigate }) {
       }
     }
     fetchLeaderboard();
-  }, [apiUrl]);
+    return () => {
+      cancelled = true;
+    };
+  }, [apiUrl, buildUrl, leaderboardFetchKey]);
 
   // Countdown view: while the plan's start date is in the future we show an
   // "X days left" card instead of the reading plan, quiz and streak sections.
@@ -325,7 +311,7 @@ export function TodayScreen({ onNavigate }) {
       const data = await res.json();
       hapticNotification("success");
       setQuizResult({ score: data.score, answered: data.answered });
-      reloadLeaderboard();
+    setLeaderboardFetchKey((key) => key + 1);
     } catch (err) {
       console.error("Failed to submit quiz", err);
       hapticNotification("error");
@@ -646,14 +632,6 @@ export function TodayScreen({ onNavigate }) {
             <ApiErrorMessage message={leaderboardError} onRetry={() => setLeaderboardFetchKey((key) => key + 1)} />
           ) : leaderboard.length === 0 ? (
             <p className="top5__empty">No leaderboard entries yet.</p>
-          ) : leaderboard.map((entry, idx) => {
-            const isMe = entry.id === user?.id;
-          {leaderboardLoading ? (
-            <div className="top5__empty">Loading leaderboard…</div>
-          ) : top5.length === 0 ? (
-            <div className="top5__empty">
-              {leaderboardError ?? "No readers to show yet."}
-            </div>
           ) : top5.map((entry, idx) => {
             const isMe = myId !== null && Number(entry.id) === myId;
             return (
@@ -664,7 +642,7 @@ export function TodayScreen({ onNavigate }) {
                 <Avatar src={entry.photo_url} name={entry.name} size={28} ring={isMe} />
                 <div className="top5__identity">
                   <p className={`top5__name${isMe ? " top5__name--me" : ""}`}>
-                    {entry.first_name} {entry.last_name ?? ""}
+                    {entry.name}
                     {isMe && <span className="top5__you">(You)</span>}
                   </p>
                   <div className="top5__streak">

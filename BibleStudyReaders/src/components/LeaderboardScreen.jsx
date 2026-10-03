@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Flame, Trophy, Crown, Brain } from "lucide-react";
 import { useGeneralContext } from "@/context/GeneralContext";
 import { useUserContext } from "@/context/UserContext";
-import { useUserContext } from "@/context/UserContext";
-import { useLeaderboardContext } from "@/context/LeaderboardContext";
 import { useDateOverride } from "@/context/DateOverrideContext";
 import { getReaderDisplayName } from "@/lib/reader";
 import { Avatar } from "@/components/ui";
@@ -72,6 +70,7 @@ export function LeaderboardScreen() {
 
   const myIndex = entries.findIndex((e) => e.id === user?.id);
   const myRank = myIndex >= 0 ? myIndex + 1 : null;
+  const myId = user?.id != null ? Number(user.id) : null;
   const isMeEntry = (entry) => myId !== null && Number(entry.id) === myId;
 
   useEffect(() => {
@@ -127,15 +126,15 @@ export function LeaderboardScreen() {
         </div>
       )}
 
-      {loading ? (
+      {isLoading ? (
         <div className="leaderboard-empty">
           <p className="leaderboard-empty__text">Loading leaderboard…</p>
         </div>
-      ) : error ? (
+      ) : loadError ? (
         <div className="leaderboard-empty">
           <Trophy className="leaderboard-empty__icon" />
           <p className="leaderboard-empty__title">Leaderboard unavailable</p>
-          <p className="leaderboard-empty__text">{error}</p>
+          <p className="leaderboard-empty__text">{loadError}</p>
         </div>
       ) : entries.length === 0 ? (
         <div className="leaderboard-empty">
@@ -243,8 +242,6 @@ function PodiumColumn({ entry, rank, height, isMe }) {
           <Icon className="podium__badge-icon" fill="currentColor" />
         </div>
       </div>
-      <p className={`podium__name${rank === 1 ? " podium__name--first" : ""}${isMe ? " podium__name--me" : ""}`}>
-        {entry.first_name}
       <p className={`podium__name${rank === 1 ? " podium__name--first" : ""}`}>
         {entry.name}
       </p>
