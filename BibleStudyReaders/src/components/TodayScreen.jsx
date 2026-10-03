@@ -3,21 +3,49 @@ import { Flame, BookOpen, Check, ChevronRight, Sunrise, Trophy, Lock, Brain, Ale
 import { useGeneralContext } from "@/context/GeneralContext";
 import { useUserContext } from "@/context/UserContext";
 import { useDateOverride } from "@/context/DateOverrideContext";
-import {
-  TODAY_GROUPS,
-  COMPLETED_CHAPTERS,
-} from "@/lib/data";
 import { hapticImpact, hapticNotification } from "@/lib/telegram";
+import { getReaderDisplayName } from "@/lib/reader";
 import { ProgressBar, Avatar } from "@/components/ui";
 import ayatLogo from "@/assets/ayat-logo.png";
 import "./TodayScreen.css";
+
+async function readJsonResponse(response, resourceName) {
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.message || `${resourceName} request failed (HTTP ${response.status}).`);
+  }
+  return payload;
+}
+
+function getApiErrorMessage(error, apiUrl) {
+  if (!apiUrl) {
+    return "The server address is not configured. Set VITE_API_URL to the public Laravel API base URL ending in /api, then rebuild the reader app.";
+  }
+  if (error instanceof TypeError) {
+    return `Couldn't reach the Bible Challenge server at ${apiUrl}. Check that the API is running and VITE_API_URL is correct.`;
+  }
+  return error instanceof Error ? error.message : "The server request failed. Please try again.";
+}
+
+function ApiErrorMessage({ message, onRetry }) {
+  return (
+    <div className="data-error" role="alert">
+      <p className="data-error__message">{message}</p>
+      {onRetry && (
+        <button className="data-error__retry" onClick={onRetry}>
+          Retry
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function TodayScreen({ onNavigate }) {
   const { profile, apiUrl } = useGeneralContext();
   const { overrideDate, buildUrl } = useDateOverride();
   // The registered name lives in localStorage (saved by the registration modal).
   const { user } = useUserContext();
-  // Local-only state; nothing persists until integration starts.
+  // Chapter selections stay local until the reader saves progress.
   const [completedLabels, setCompletedLabels] = useState(() => new Set());
   const [quizAnswers, setQuizAnswers] = useState({});
 
@@ -31,8 +59,13 @@ export function TodayScreen({ onNavigate }) {
   const [quizQuestions, setQuizQuestions] = useState([]);
   const [quizLoading, setQuizLoading] = useState(false);
   const [hasQuestions, setHasQuestions] = useState(true);
+  const [questionError, setQuestionError] = useState(null);
   const [saveMessage, setSaveMessage] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(true);
+  const [readingError, setReadingError] = useState(null);
+  const [leaderboardError, setLeaderboardError] = useState(null);
+  const [leaderboardFetchKey, setLeaderboardFetchKey] = useState(0);
 
   const today = overrideDate ? new Date(overrideDate + "T00:00:00") : new Date();
 
@@ -49,106 +82,149 @@ export function TodayScreen({ onNavigate }) {
       setIsLoading(false);
       return;
     }
-    
+
+    let cancelled = false;
+    setIsLoading(true);
+    setReadingError(null);
+
     async function fetchReadings() {
+      if (!apiUrl) {
+        setReadingError(getApiErrorMessage(null, apiUrl));
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const res = await fetch(buildUrl(`${apiUrl}/readers/${user.id}/plans/1/daily-readings`));
-        
-        // If the database was cleared, the backend will return 404 (Not Found).
-        // We should clear the local storage and force a reload to show the registration screen.
-        if (res.status === 404) {
-          localStorage.removeItem("bible_challenge_user_details");
-          window.location.reload();
-          return;
+        const res = await fetch(buildUrl(`${apiUrl}/readers/${user.id}/plans/1/daily-readings`), {
+          headers: { Accept: "application/json" },
+        });
+        const data = await readJsonResponse(res, "Today's reading");
+        if (!Array.isArray(data?.readings)) {
+          throw new Error("The server returned an invalid daily reading response.");
         }
 
-        if (res.ok) {
-          const data = await res.json();
-          setApiMetadata(data);
-          
-          // Group the readings by book for the UI
-          const grouped = {};
-          const completed = new Set();
-          
-          data.readings.forEach(reading => {
-            const label = `${reading.book} ${reading.chapter_number}`;
-            if (!grouped[reading.book]) {
-              grouped[reading.book] = {
-                id: reading.book.toLowerCase().replace(/\s+/g, '-'),
-                book: reading.book,
-                chapterLabels: []
-              };
-            }
-            grouped[reading.book].chapterLabels.push(label);
-            
-            if (reading.is_completed) {
-              completed.add(label);
-            }
-          });
-          
-          setTodayGroups(Object.values(grouped));
-          setCompletedLabels(completed);
+        if (cancelled) return;
+        setApiMetadata(data);
 
-          // --- Fetch questions for today's chapter IDs ---
-          const chapterIds = data.readings.map(r => r.chapter_id);
-          if (chapterIds.length > 0) {
-            fetchQuestions(chapterIds);
-          } else {
-            setHasQuestions(false);
+        const grouped = {};
+        const completed = new Set();
+
+        data.readings.forEach((reading) => {
+          const label = `${reading.book} ${reading.chapter_number}`;
+          if (!grouped[reading.book]) {
+            grouped[reading.book] = {
+              id: reading.book.toLowerCase().replace(/\s+/g, '-'),
+              book: reading.book,
+              chapterLabels: [],
+            };
           }
+          grouped[reading.book].chapterLabels.push(label);
+
+          if (reading.is_completed) {
+            completed.add(label);
+          }
+        });
+
+        setTodayGroups(Object.values(grouped));
+        setCompletedLabels(completed);
+
+        const chapterIds = data.readings.map((reading) => reading.chapter_id);
+        if (chapterIds.length > 0) {
+          fetchQuestions(chapterIds);
+        } else {
+          setQuizQuestions([]);
+          setHasQuestions(false);
+          setQuestionError(null);
+          setQuizLoading(false);
         }
       } catch (err) {
-        console.error("Failed to fetch daily readings", err);
+        if (!cancelled) {
+          setApiMetadata(null);
+          setTodayGroups([]);
+          setCompletedLabels(new Set());
+          setReadingError(getApiErrorMessage(err, apiUrl));
+          setQuizQuestions([]);
+          setQuizLoading(false);
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
 
     async function fetchQuestions(chapterIds) {
+      setQuestionError(null);
       setQuizLoading(true);
       try {
         const ids = chapterIds.join(',');
-        const res = await fetch(buildUrl(`${apiUrl}/questions/by-chapters?chapter_ids=${ids}`));
-        if (res.ok) {
-          const payload = await res.json();
-          setQuizQuestions(payload.questions || []);
-          setHasQuestions(payload.has_questions ?? false);
-        } else {
-          setHasQuestions(false);
+        const res = await fetch(buildUrl(`${apiUrl}/questions/by-chapters?chapter_ids=${ids}`), {
+          headers: { Accept: "application/json" },
+        });
+        const payload = await readJsonResponse(res, "Today's quiz");
+        if (!cancelled) {
+          setQuizQuestions(Array.isArray(payload?.questions) ? payload.questions : []);
+          setHasQuestions(payload?.has_questions ?? (Array.isArray(payload?.questions) && payload.questions.length > 0));
         }
       } catch (err) {
-        console.error("Failed to fetch quiz questions", err);
-        setHasQuestions(false);
+        if (!cancelled) {
+          setHasQuestions(false);
+          setQuestionError(getApiErrorMessage(err, apiUrl));
+        }
       } finally {
-        setQuizLoading(false);
+        if (!cancelled) setQuizLoading(false);
       }
     }
-    
+
     fetchReadings();
+    return () => {
+      cancelled = true;
+    };
   }, [user, apiUrl, buildUrl, fetchKey]);
 
   useEffect(() => {
+    let cancelled = false;
+    setLeaderboardError(null);
+    setLeaderboardLoading(true);
+
     async function fetchLeaderboard() {
+      if (!apiUrl) {
+        setLeaderboardError(getApiErrorMessage(null, apiUrl));
+        setLeaderboardLoading(false);
+        return;
+      }
+
       try {
-        const res = await fetch(`${apiUrl}/leaderboard`);
-        if (res.ok) {
-          const data = await res.json();
-          const mapped = data.personal.slice(0, 5).map(p => ({
-            id: p.reader_id,
-            first_name: p.reader_name,
-            last_name: "",
-            current_streak: p.current_streak,
-            score: p.total_score,
+        const res = await fetch(buildUrl(`${apiUrl}/leaderboard`), {
+          headers: { Accept: "application/json" },
+        });
+        const data = await readJsonResponse(res, "Leaderboard");
+        if (!Array.isArray(data?.personal)) {
+          throw new Error("The server returned an invalid leaderboard response.");
+        }
+
+        if (!cancelled) {
+          const mapped = data.personal.slice(0, 5).map((person) => ({
+            id: person.reader_id,
+            name: getReaderDisplayName(person),
+            current_streak: person.current_streak,
+            score: person.total_score,
             photo_url: null,
           }));
           setLeaderboard(mapped);
         }
       } catch (err) {
-        console.error("Failed to fetch leaderboard", err);
+        if (!cancelled) {
+          setLeaderboard([]);
+          setLeaderboardError(getApiErrorMessage(err, apiUrl));
+        }
+      } finally {
+        if (!cancelled) setLeaderboardLoading(false);
       }
     }
     fetchLeaderboard();
-  }, [apiUrl]);
+    return () => {
+      cancelled = true;
+    };
+  }, [apiUrl, buildUrl, leaderboardFetchKey]);
 
   const allTodayChapters = todayGroups.flatMap((g) => g.chapterLabels);
   const todayCompletedCount = allTodayChapters.filter((ch) => completedLabels.has(ch)).length;
@@ -268,18 +344,18 @@ export function TodayScreen({ onNavigate }) {
           <div>
             <div className="streak-card__label">
               <Flame className="streak-card__flame" fill="currentColor" />
-              <span>{apiMetadata?.current_streak ?? 0} Day Streak</span>
+              <span>{apiMetadata ? apiMetadata.current_streak : "—"} Day Streak</span>
             </div>
             <p className="streak-card__hint">
               {(apiMetadata?.current_streak ?? 0) > 0
               ? "You're on fire! Keep reading daily."
-              : "Read today to start your streak!"}
+              : apiMetadata ? "Read today to start your streak!" : "Streak information is unavailable."}
             </p>
           </div>
           <div className="streak-card__best">
             <span className="streak-card__best-label">Best</span>
             <p className="streak-card__best-value">
-              {apiMetadata?.best_streak ?? 0} days
+              {apiMetadata ? `${apiMetadata.best_streak} days` : "—"}
             </p>
           </div>
         </div>
@@ -300,10 +376,14 @@ export function TodayScreen({ onNavigate }) {
         )}
 
         <p className="reading-card__total">
-          {todayTotal} chapters total ({apiMetadata?.verses_assigned || 0} verses)
+          {apiMetadata
+            ? `${todayTotal} chapters total (${apiMetadata.verses_assigned || 0} verses)`
+            : "Today's reading is unavailable."}
         </p>
 
-        <ProgressBar value={todayCompletedCount} max={todayTotal} showNumbers size="lg" />
+        {apiMetadata && <ProgressBar value={todayCompletedCount} max={todayTotal} showNumbers size="lg" />}
+
+        {readingError && <ApiErrorMessage message={readingError} onRetry={() => setFetchKey((key) => key + 1)} />}
 
         {allDone && (
           <p className="reading-card__done">
@@ -322,12 +402,15 @@ export function TodayScreen({ onNavigate }) {
               onToggle={handleToggleChapter}
             />
           ))}
+          {apiMetadata && todayGroups.length === 0 && (
+            <p className="reading-card__empty">No chapters are assigned for today.</p>
+          )}
         </div>
         
         <button 
           className="reading-card__save" 
           onClick={handleSaveProgress}
-          disabled={completedLabels.size === 0 || isSaving}
+          disabled={!apiMetadata || completedLabels.size === 0 || isSaving}
         >
           {isSaving ? "Saving..." : "Save Progress"}
         </button>
@@ -358,6 +441,10 @@ export function TodayScreen({ onNavigate }) {
               <div className="skeleton" style={{ height: '3rem', width: '100%', borderRadius: '0.75rem', marginBottom: '0.5rem' }} />
               <div className="skeleton" style={{ height: '3rem', width: '100%', borderRadius: '0.75rem' }} />
             </div>
+          ) : readingError ? (
+            <p className="quiz-card__empty">The quiz is unavailable until today's reading loads.</p>
+          ) : questionError ? (
+            <ApiErrorMessage message={questionError} onRetry={() => setFetchKey((key) => key + 1)} />
           ) : !hasQuestions || quizQuestions.length === 0 ? (
             <div className="quiz-empty">
               <AlertCircle className="quiz-empty__icon" />
@@ -425,17 +512,23 @@ export function TodayScreen({ onNavigate }) {
         </div>
 
         <div className="top5__list">
-          {leaderboard.map((entry, idx) => {
+          {leaderboardLoading ? (
+            <p className="top5__empty" role="status">Loading leaderboard…</p>
+          ) : leaderboardError ? (
+            <ApiErrorMessage message={leaderboardError} onRetry={() => setLeaderboardFetchKey((key) => key + 1)} />
+          ) : leaderboard.length === 0 ? (
+            <p className="top5__empty">No leaderboard entries yet.</p>
+          ) : leaderboard.map((entry, idx) => {
             const isMe = entry.id === user?.id;
             return (
               <div key={entry.id} className="top5__row">
                 <span className={`top5__rank${idx < 3 ? " top5__rank--top" : ""}`}>
                   {idx + 1}
                 </span>
-                <Avatar src={entry.photo_url} name={`${entry.first_name} ${entry.last_name ?? ""}`} size={28} ring={isMe} />
+                <Avatar src={entry.photo_url} name={entry.name} size={28} ring={isMe} />
                 <div className="top5__identity">
                   <p className={`top5__name${isMe ? " top5__name--me" : ""}`}>
-                    {entry.first_name} {entry.last_name ?? ""}
+                    {entry.name}
                   </p>
                   <div className="top5__streak">
                     <Flame className="top5__streak-flame" fill="currentColor" />

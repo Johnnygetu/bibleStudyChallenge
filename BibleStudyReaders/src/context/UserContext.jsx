@@ -79,6 +79,10 @@ export function UserProvider({ children }) {
   // is available it rides along with the registration request; when it is not
   // (optional mode, opened outside Telegram) the account is still created.
   const register = async (fullName, phoneNumber) => {
+    if (!apiUrl) {
+      throw new Error("The server address is not configured. Set VITE_API_URL to the public Laravel API base URL ending in /api, then rebuild the reader app.");
+    }
+
     const chatId = telegramUser?.id ? String(telegramUser.id) : "";
     const phone = (phoneNumber ?? "").trim();
 
@@ -132,7 +136,7 @@ export function UserProvider({ children }) {
   const syncedChatIds = useRef(new Set());
   useEffect(() => {
     const chatId = telegramUser?.id ? String(telegramUser.id) : "";
-    if (!user?.id || !chatId || user.chatId === chatId) return;
+    if (!apiUrl || !user?.id || !chatId || user.chatId === chatId) return;
     if (syncedChatIds.current.has(chatId)) return;
     syncedChatIds.current.add(chatId);
 
