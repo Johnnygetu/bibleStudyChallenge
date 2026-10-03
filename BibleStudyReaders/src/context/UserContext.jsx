@@ -75,6 +75,21 @@ export function UserProvider({ children }) {
 
   const retryTelegram = () => setTelegramAttempt((n) => n + 1);
 
+  // Success feedback for registration: the modal unmounts the moment the user
+  // is saved, so the message lives here and App renders it as a notice.
+  const [notice, setNotice] = useState("");
+  const dismissNotice = () => setNotice("");
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(""), 6000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  // Chat ids already sent to the server (stored or refused), so a link the
+  // server declined is not retried on every visit.
+  const syncedChatIds = useRef(new Set());
+
   // The chat id comes silently from the Telegram bot — never typed. When it
   // is available it rides along with the registration request; when it is not
   // (optional mode, opened outside Telegram) the account is still created.
@@ -102,9 +117,8 @@ export function UserProvider({ children }) {
     const body = { name: fullName, phone_number: phone };
     if (chatId) body.chat_id = Number(chatId);
 
-    let response;
-    try {
-      response = await fetch(`${apiUrl}/readers`, {
+    const post = () =>
+      fetch(`${apiUrl}/readers`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -112,20 +126,49 @@ export function UserProvider({ children }) {
         },
         body: JSON.stringify(body),
       });
+
+    const unreachable = () =>
+      new Error("We could not reach the server. Check your connection and try again.");
+
+    let response;
+    let payload;
+    try {
+      response = await post();
+      payload = await response.json().catch(() => null);
     } catch {
-      throw new Error("We could not reach the server. Check your connection and try again.");
+      throw unreachable();
     }
 
-    const payload = await response.json().catch(() => null);
+    // A chat id that already belongs to another reader is skipped instead of
+    // failing the sign-up: drop it and register anyway. The server does the
+    // same on its own — the retry only fires against an older backend.
+    const chatIdTaken = !response.ok && body.chat_id !== undefined && !!payload?.errors?.chat_id;
+
+    if (chatIdTaken) {
+      delete body.chat_id;
+      try {
+        response = await post();
+        payload = await response.json().catch(() => null);
+      } catch {
+        throw unreachable();
+      }
+      syncedChatIds.current.add(chatId);
+    }
 
     if (!response.ok) {
       const firstError = payload?.errors ? Object.values(payload.errors)[0]?.[0] : null;
       throw new Error(firstError ?? payload?.message ?? "We could not create your account. Please try again.");
     }
 
-    const next = { id: payload?.id, fullName, phone, chatId };
+    // Keep what the server actually stored: a skipped chat id stays empty, so
+    // the background sync never retries a link the server already refused.
+    const savedChatId = payload?.chat_id != null ? String(payload.chat_id) : "";
+    if (chatId && !savedChatId) syncedChatIds.current.add(chatId);
+
+    const next = { id: payload?.id, fullName, phone, chatId: savedChatId };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setUser(next);
+    setNotice("You're registered! Welcome to the Bible Study Challenge.");
     return next;
   };
 
@@ -133,7 +176,6 @@ export function UserProvider({ children }) {
   // was made outside Telegram) is attached silently on the first launch that
   // does have one, so the optional id is never permanently missing. Best
   // effort: losing it only leaves the reader without Telegram reminders.
-  const syncedChatIds = useRef(new Set());
   useEffect(() => {
     const chatId = telegramUser?.id ? String(telegramUser.id) : "";
     if (!apiUrl || !user?.id || !chatId || user.chatId === chatId) return;
@@ -168,6 +210,8 @@ export function UserProvider({ children }) {
     telegramUser,
     telegramStatus,
     retryTelegram,
+    notice,
+    dismissNotice,
     suggestedName: composeFullName(telegramUser),
     register,
   };

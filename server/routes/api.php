@@ -26,6 +26,7 @@ Route::get('progress', [ProgressController::class, 'index'])->name('progress.ind
 Route::get('readers/{reader}/plans/{plan}/daily-readings', [ReaderController::class, 'dailyReadings']);
 Route::get('readers/{reader}/plans/{plan}/lag-status', [ReaderController::class, 'lagStatus']);
 Route::post('readers/{reader}/plans/{plan}/save-progress', [ReaderController::class, 'saveProgress']);
+Route::post('readers/{reader}/scores', [ReaderController::class, 'storeScore'])->name('scores.store');
 
 Route::get('plans/{plan}/schedule', [PlanController::class, 'schedule']);
 Route::patch('plans/{plan}/daily-verse-limit', [PlanController::class, 'updateDailyVerseLimit']);
