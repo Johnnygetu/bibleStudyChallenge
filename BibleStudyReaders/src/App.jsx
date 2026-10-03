@@ -3,7 +3,6 @@ import { BookOpen, Trophy } from "lucide-react";
 import { TodayScreen } from "./components/TodayScreen.jsx";
 import { LeaderboardScreen } from "./components/LeaderboardScreen.jsx";
 import { GeneralProvider } from "./context/GeneralContext.jsx";
-import { LeaderboardProvider } from "./context/LeaderboardContext.jsx";
 import { UserProvider, useUserContext } from "./context/UserContext.jsx";
 import { DateOverrideProvider } from "./context/DateOverrideContext.jsx";
 import { RegistrationModal } from "./components/RegistrationModal.jsx";

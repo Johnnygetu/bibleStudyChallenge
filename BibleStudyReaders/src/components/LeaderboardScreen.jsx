@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { Flame, Trophy, Crown, Brain } from "lucide-react";
 import { useGeneralContext } from "@/context/GeneralContext";
 import { useUserContext } from "@/context/UserContext";
-import { useUserContext } from "@/context/UserContext";
-import { useLeaderboardContext } from "@/context/LeaderboardContext";
+import { useDateOverride } from "@/context/DateOverrideContext";
+import { getReaderDisplayName } from "@/lib/reader";
 import { Avatar } from "@/components/ui";
 import ayatLogo from "@/assets/ayat-logo.png";
 import "./LeaderboardScreen.css";
@@ -11,38 +11,66 @@ import "./LeaderboardScreen.css";
 export function LeaderboardScreen() {
   const { apiUrl } = useGeneralContext();
   const { user } = useUserContext();
+  const { buildUrl } = useDateOverride();
   const myEntryRef = useRef(null);
 
   const [entries, setEntries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [fetchKey, setFetchKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setLoadError(null);
+
     async function fetchLeaderboard() {
-      try {
-        const res = await fetch(`${apiUrl}/leaderboard`);
-        if (res.ok) {
-          const data = await res.json();
-          const mapped = data.personal.map(p => ({
-            id: p.reader_id,
-            first_name: p.reader_name,
-            last_name: "",
-            current_streak: p.current_streak,
-            score: p.total_score,
-            photo_url: null,
-          }));
-          setEntries(mapped);
-        }
-      } catch (err) {
-        console.error("Failed to fetch leaderboard", err);
-      } finally {
+      if (!apiUrl) {
+        setLoadError("The server address is not configured. Set VITE_API_URL to the public Laravel API base URL ending in /api, then rebuild the reader app.");
         setIsLoading(false);
+        return;
+      }
+
+      try {
+        const res = await fetch(buildUrl(`${apiUrl}/leaderboard`), {
+          headers: { Accept: "application/json" },
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(data?.message || `Leaderboard request failed (HTTP ${res.status}).`);
+        }
+        if (!Array.isArray(data?.personal)) {
+          throw new Error("The server returned an invalid leaderboard response.");
+        }
+
+        const mapped = data.personal.map((person) => ({
+          id: person.reader_id,
+          name: getReaderDisplayName(person),
+          current_streak: person.current_streak,
+          score: person.total_score,
+          photo_url: null,
+        }));
+        if (!cancelled) setEntries(mapped);
+      } catch (err) {
+        if (!cancelled) {
+          setEntries([]);
+          setLoadError(err instanceof TypeError
+            ? `Couldn't reach the Bible Challenge server at ${apiUrl}. Check that the API is running and VITE_API_URL is correct.`
+            : err instanceof Error ? err.message : "The leaderboard could not be loaded. Please try again.");
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     }
     fetchLeaderboard();
-  }, [apiUrl]);
+    return () => {
+      cancelled = true;
+    };
+  }, [apiUrl, buildUrl, fetchKey]);
 
   const myIndex = entries.findIndex((e) => e.id === user?.id);
   const myRank = myIndex >= 0 ? myIndex + 1 : null;
+  const myId = user?.id != null ? Number(user.id) : null;
   const isMeEntry = (entry) => myId !== null && Number(entry.id) === myId;
 
   useEffect(() => {
@@ -89,15 +117,24 @@ export function LeaderboardScreen() {
         <h1 className="leaderboard__header-title">Leaderboard</h1>
       </div>
 
-      {loading ? (
+      {loadError && (
+        <div className="data-error" role="alert">
+          <p className="data-error__message">{loadError}</p>
+          <button className="data-error__retry" onClick={() => setFetchKey((key) => key + 1)}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {isLoading ? (
         <div className="leaderboard-empty">
           <p className="leaderboard-empty__text">Loading leaderboard…</p>
         </div>
-      ) : error ? (
+      ) : loadError ? (
         <div className="leaderboard-empty">
           <Trophy className="leaderboard-empty__icon" />
           <p className="leaderboard-empty__title">Leaderboard unavailable</p>
-          <p className="leaderboard-empty__text">{error}</p>
+          <p className="leaderboard-empty__text">{loadError}</p>
         </div>
       ) : entries.length === 0 ? (
         <div className="leaderboard-empty">
@@ -133,7 +170,7 @@ export function LeaderboardScreen() {
       )}
 
       {/* Podium */}
-      {top3.length > 0 && (
+      {!isLoading && !loadError && top3.length > 0 && (
         <div className="podium">
           {top3[1] && (
             <PodiumColumn entry={top3[1]} rank={2} height={88} isMe={isMeEntry(top3[1])} />
@@ -149,7 +186,11 @@ export function LeaderboardScreen() {
 
       {/* Full list */}
       <div className="ranking-list">
-        {restEntries.map((entry, idx) => {
+        {isLoading ? (
+          <div className="leaderboard__status" role="status">Loading leaderboard…</div>
+        ) : !loadError && entries.length === 0 ? (
+          <div className="leaderboard__status">No leaderboard entries yet.</div>
+        ) : restEntries.map((entry, idx) => {
           const rank = idx + 4;
           const isMe = entry.id === user?.id;
           return (
@@ -161,10 +202,10 @@ export function LeaderboardScreen() {
               <span className={`ranking-row__rank${isMe ? " ranking-row__rank--me" : ""}`}>
                 {rank}
               </span>
-              <Avatar src={entry.photo_url} name={`${entry.first_name} ${entry.last_name ?? ""}`} size={36} />
+              <Avatar src={entry.photo_url} name={entry.name} size={36} />
               <div className="ranking-row__identity">
                 <p className={`ranking-row__name${isMe ? " ranking-row__name--me" : ""}`}>
-                  {entry.first_name} {entry.last_name ?? ""}
+                  {entry.name}
                   {isMe && <span className="ranking-row__you">(You)</span>}
                 </p>
                 <div className="ranking-row__stats">
@@ -196,13 +237,13 @@ function PodiumColumn({ entry, rank, height, isMe }) {
   return (
     <div className="podium__column">
       <div className="podium__avatar-wrap">
-        <Avatar src={entry.photo_url} name={`${entry.first_name} ${entry.last_name ?? ""}`} size={rank === 1 ? 56 : 48} ring={rank === 1} />
+        <Avatar src={entry.photo_url} name={entry.name} size={rank === 1 ? 56 : 48} ring={rank === 1} />
         <div className={`podium__badge podium__badge--${variant}`}>
           <Icon className="podium__badge-icon" fill="currentColor" />
         </div>
       </div>
-      <p className={`podium__name${rank === 1 ? " podium__name--first" : ""}${isMe ? " podium__name--me" : ""}`}>
-        {entry.first_name}
+      <p className={`podium__name${rank === 1 ? " podium__name--first" : ""}`}>
+        {entry.name}
       </p>
       {isMe && <span className="podium__you">(You)</span>}
       <p className="podium__stats">

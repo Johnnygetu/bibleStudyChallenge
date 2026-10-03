@@ -187,6 +187,14 @@
   margin-bottom: 1rem;
 }
 
+.reading-card__empty,
+.top5__empty {
+  font-size: 0.8125rem;
+  color: var(--ink-400);
+  text-align: center;
+  padding: 0.75rem 0;
+}
+
 .reading-card__done {
   font-size: 0.75rem;
   color: var(--success-500);
