@@ -36,6 +36,15 @@ function describeError(err) {
   const fieldErrors = err.fieldErrors;
 
   if (!fieldErrors) {
+    // A rejection whose body was not JSON: the server said no but not in a
+    // form we can read. Point at the console rather than guess at a cause.
+    if (err.status && err.body === null && err.rawBody !== undefined) {
+      const kind = err.contentType?.includes('html') ? 'an HTML page' : 'an unreadable body';
+      return {
+        message: `The server rejected the upload with ${err.status} but sent ${kind} instead of an error report. The raw response is logged in the console.`,
+      };
+    }
+
     return { message: err.message || 'The upload failed. Check your connection and try again.' };
   }
 
@@ -60,6 +69,61 @@ function describeError(err) {
   return { message: err.message, fileMessage, rowErrors };
 }
 
+// The page can only show the row-by-row summary. The console keeps everything
+// needed to work out what went wrong: the request that was sent, the server's
+// whole response, the raw error with its stack, and the row errors as a table.
+function logBulkUploadError(err, { file, rowCount, described }) {
+  console.group(
+    `%cBulk upload failed: ${file?.name ?? 'unknown file'}`,
+    'color:#b91c1c;font-weight:600',
+  );
+  console.error(err);
+
+  console.log('Request', {
+    method: 'POST',
+    endpoint: err.url ?? '(unknown)',
+    file: file ? { name: file.name, size: file.size, type: file.type || '(none)' } : null,
+    rowsSent: rowCount,
+  });
+
+  console.log('Response', {
+    status: err.status ?? '(no response)',
+    statusText: err.statusText ?? '',
+    contentType: err.contentType ?? '(none)',
+    message: err.message,
+    body: err.body ?? null,
+  });
+
+  // When the reply was not JSON the text is the only clue there is — an HTML
+  // error page, a fatal, a proxy's message — so print it rather than hide it.
+  if (err.rawBody !== undefined && err.body === null) {
+    console.log(`${err.rawBody.length} bytes of non-JSON response body:`);
+    console.log(err.rawBody.slice(0, 2000) || '(empty body)');
+  }
+
+  // What went wrong before the request was even sent, or instead of a reply.
+  if (err.networkFailure) console.log('The request never reached the server.', err.cause);
+  if (err.writtenButUnconfirmed) console.log('The rows were written; only the reply was unreadable.', err.cause);
+
+  if (described.fileMessage) {
+    console.log('File error:', described.fileMessage);
+  }
+
+  if (described.rowErrors?.length) {
+    const count = described.rowErrors.length;
+    console.log(`${count} row error${count === 1 ? '' : 's'}:`);
+    console.table(
+      described.rowErrors.map(({ row, field, text }) => ({
+        row: row ?? '-',
+        field,
+        error: text,
+      })),
+    );
+  }
+
+  console.groupEnd();
+}
+
 /**
  * Import a JSON file of questions in one request. The server writes either
  * every row or none, so a failure leaves the question list untouched and the
@@ -79,7 +143,13 @@ export default function BulkUpload({ onBack, onImported }) {
   // Read the file in the browser first: a file that isn't a JSON array can be
   // reported instantly, and the count can be shown before anything is sent.
   async function accept(candidate) {
-    if (!candidate) return;
+    // Every way out of here is logged. Three of the four also set a message
+    // the admin can see, but this one is silent, and a silent rejection is
+    // indistinguishable from the file never having been picked at all.
+    if (!candidate) {
+      console.warn('Bulk upload: no file reached the handler — the picker or drop was empty.');
+      return;
+    }
 
     setFile(null);
     setReadyCount(0);
@@ -87,6 +157,9 @@ export default function BulkUpload({ onBack, onImported }) {
     setUploadError(null);
 
     if (candidate.size > MAX_FILE_BYTES) {
+      console.warn(
+        `Bulk upload: rejected ${candidate.name} at ${formatBytes(candidate.size)}, over the 10 MB limit.`,
+      );
       setFileError(`${candidate.name} is ${formatBytes(candidate.size)}. The limit is 10 MB.`);
       return;
     }
@@ -94,12 +167,19 @@ export default function BulkUpload({ onBack, onImported }) {
     let parsed;
     try {
       parsed = JSON.parse(await candidate.text());
-    } catch {
+    } catch (err) {
+      // The parser's own message ("Unexpected token } in JSON at position
+      // 512") is the useful part, and the form can only say it was unreadable.
+      console.error(`Bulk upload: could not parse ${candidate.name} as JSON:`, err);
       setFileError(`We could not read ${candidate.name} as JSON. Check the file and try again.`);
       return;
     }
 
     if (!Array.isArray(parsed) || parsed.length === 0) {
+      console.warn(
+        `Bulk upload: rejected ${candidate.name} — it parsed as ` +
+          `${Array.isArray(parsed) ? 'an empty array' : `a ${typeof parsed}`}, not a non-empty array.`,
+      );
       setFileError('The file must hold a JSON array of questions, like the example file below.');
       return;
     }
@@ -131,8 +211,9 @@ export default function BulkUpload({ onBack, onImported }) {
       const result = await bulkUpload(file);
       onImported(result?.created ?? readyCount);
     } catch (err) {
-      console.error('Failed to bulk upload questions:', err);
-      setUploadError(describeError(err));
+      const described = describeError(err);
+      logBulkUploadError(err, { file, rowCount: readyCount, described });
+      setUploadError(described);
     } finally {
       setUploading(false);
     }
@@ -197,9 +278,16 @@ export default function BulkUpload({ onBack, onImported }) {
             // The click bubbles back up to the zone above, which opens the
             // picker in turn; stopping it keeps that to one hop.
             onClick={(event) => event.stopPropagation()}
-            onChange={(event) => {
-              accept(event.target.files?.[0]);
-              event.target.value = '';
+            onChange={async (event) => {
+              const input = event.target;
+              // Read the file before clearing the input. Setting `value`
+              // releases the handle the reader is still holding, so clearing
+              // it first only works by luck of the browser.
+              try {
+                await accept(input.files?.[0]);
+              } finally {
+                input.value = '';
+              }
             }}
           />
           <div className="bulk-drop-icon">

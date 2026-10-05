@@ -110,27 +110,71 @@ export function QuestionsProvider({ children }) {
   // every row before writing any, so a failure means nothing was imported — the
   // thrown error carries the per-row field errors so the page can list them.
   const bulkUpload = useCallback(async (file) => {
+    const url = `${apiUrl}/questions/bulk`;
     const form = new FormData();
     form.append('file', file);
 
-    const response = await fetch(`${apiUrl}/questions/bulk`, {
-      method: 'POST',
-      // No Content-Type header: the browser has to set the multipart boundary.
-      headers: { Accept: 'application/json' },
-      body: form,
-    });
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        // No Content-Type header: the browser has to set the multipart boundary.
+        headers: { Accept: 'application/json' },
+        body: form,
+      });
+    } catch (cause) {
+      // The request never reached the server — offline, DNS, CORS, or a
+      // refused connection. Keep the original error so the console shows
+      // which of those it was; `fetch` only says "Failed to fetch".
+      const error = new Error(`Could not reach ${url}. Check your connection and try again.`);
+      error.cause = cause;
+      error.url = url;
+      error.networkFailure = true;
+      throw error;
+    }
+
+    // Read the body as text first, then parse it. A failing request can answer
+    // with an HTML error page — a proxy, a PHP fatal, a WAF — and calling
+    // .json() straight on that throws, discarding the only clue about what
+    // actually happened. The text is kept either way.
+    const rawBody = await response.text().catch(() => '');
+    const contentType = response.headers.get('content-type') ?? '';
+
+    let body = null;
+    let parseError = null;
+    try {
+      body = rawBody ? JSON.parse(rawBody) : null;
+    } catch (cause) {
+      parseError = cause; // Not JSON. rawBody still carries it to the console.
+    }
 
     if (!response.ok) {
-      const body = await response.json().catch(() => null);
       const error = new Error(body?.message || `The server responded with ${response.status}.`);
       error.status = response.status;
+      error.statusText = response.statusText;
+      error.url = url;
+      error.contentType = contentType;
+      error.rawBody = rawBody;
+      error.body = body;
+      error.cause = parseError;
       error.fieldErrors = body?.errors ?? null; // { file: [...], 'questions.3.correct_option': [...] }
       throw error;
     }
 
-    const result = await response.json(); // { created, question_ids }
+    if (!body) {
+      // The rows were written, but we cannot tell the page how many.
+      const error = new Error('The upload succeeded but the server sent back a reply that is not JSON.');
+      error.status = response.status;
+      error.url = url;
+      error.contentType = contentType;
+      error.rawBody = rawBody;
+      error.cause = parseError;
+      error.writtenButUnconfirmed = true;
+      throw error;
+    }
+
     await reload();
-    return result;
+    return body;
   }, [reload]);
 
   // Delete one question. The id is exposed as `deletingId` so the row can
