@@ -41,11 +41,14 @@ class QuestionController extends Controller
      *
      * POST /api/questions/bulk  (multipart/form-data, field: file)
      *
-     * The file holds a JSON array of the same objects POST /questions accepts.
-     * A row says where its question belongs either by `book_chapter_id`, which
-     * files it under a chapter that already exists, or by `book` + `chapter`,
-     * which finds or creates that chapter. Nothing is written unless every row
+     * The file holds a JSON array of questions. Every row names the chapter it
+     * belongs to with `book_chapter_id`, which must already exist — the bulk
+     * import never creates chapters. Nothing is written unless every row
      * passes validation.
+     *
+     * Kept as one self-contained function on purpose: reading the file,
+     * validating it, and writing it are all one operation, and the whole of it
+     * is easier to follow in one place than spread over helpers.
      */
     public function bulkStore(Request $request)
     {
@@ -55,16 +58,34 @@ class QuestionController extends Controller
             'file' => 'required|file|mimes:json,txt|max:10240',
         ]);
 
-        $questions = $this->decodeQuestionsFile($request->file('file')->get());
+        $questions = json_decode($request->file('file')->get(), true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($questions)) {
+            throw ValidationException::withMessages([
+                'file' => 'The file must contain a JSON array of questions.',
+            ]);
+        }
+
+        if (! array_is_list($questions)) {
+            throw ValidationException::withMessages([
+                'file' => 'The file must contain a JSON array of questions, not an object.',
+            ]);
+        }
+
+        if (empty($questions)) {
+            throw ValidationException::withMessages([
+                'file' => 'The uploaded file contains no questions.',
+            ]);
+        }
 
         // Validate the whole array up front so a single bad row fails the
-        // request with its index and no rows are written.
+        // request with its index and no rows are written. `exists` is what
+        // keeps the import from pointing questions at a chapter that isn't
+        // there.
         $validator = Validator::make(['questions' => $questions], [
             'questions' => 'required|array|min:1',
             'questions.*' => 'required|array',
-            'questions.*.book_chapter_id' => 'nullable|integer|exists:book_chapters,id',
-            'questions.*.book' => 'nullable|string|max:100',
-            'questions.*.chapter' => 'nullable|integer|min:1',
+            'questions.*.book_chapter_id' => 'required|integer|exists:book_chapters,id',
             'questions.*.question_text' => 'required|string',
             'questions.*.options' => 'required|array',
             'questions.*.options.a' => 'required|string',
@@ -72,76 +93,40 @@ class QuestionController extends Controller
             'questions.*.options.c' => 'required|string',
             'questions.*.options.d' => 'required|string',
             'questions.*.correct_option' => 'required|in:a,b,c,d',
-            'questions.*.num_verses' => 'nullable|integer|min:0',
         ]);
-
-        // Every row has to say where its question goes: a `book_chapter_id`
-        // for a chapter that already exists, or a `book` + `chapter` pair to
-        // find or create one. Wildcard rules are expanded to concrete indices
-        // before `required_without` resolves its parameter, so "one or the
-        // other" can't be expressed in the rule array — it is checked here,
-        // where the row index is still known and the error lands on the field.
-        $validator->after(function ($validator) use ($questions) {
-            foreach ($questions as $index => $question) {
-                if (! is_array($question) || ! empty($question['book_chapter_id'])) {
-                    continue;
-                }
-
-                $message = 'Give the question a book_chapter_id, or a book and a chapter.';
-
-                if (empty($question['book'])) {
-                    $validator->errors()->add("questions.{$index}.book", $message);
-                }
-
-                if (empty($question['chapter'])) {
-                    $validator->errors()->add("questions.{$index}.chapter", $message);
-                }
-            }
-        });
 
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
 
-        $created = DB::transaction(
-            fn () => collect($validator->validated()['questions'])
-                ->map(fn (array $data) => $this->createQuestion($data))
-        );
+        $questionIds = DB::transaction(function () use ($validator) {
+            $ids = [];
+
+            foreach ($validator->validated()['questions'] as $data) {
+                $question = Question::create([
+                    'chapter_id' => $data['book_chapter_id'],
+                    'question_text' => $data['question_text'],
+                ]);
+
+                // The four validated letters only, so a stray "e" in the file
+                // cannot add a fifth choice.
+                foreach (['a', 'b', 'c', 'd'] as $letter) {
+                    $question->answers()->create([
+                        'answer_text' => $data['options'][$letter],
+                        'correct_answer' => $letter === $data['correct_option'],
+                    ]);
+                }
+
+                $ids[] = $question->id;
+            }
+
+            return $ids;
+        });
 
         return response()->json([
-            'created' => $created->count(),
-            'question_ids' => $created->pluck('id')->all(),
+            'created' => count($questionIds),
+            'question_ids' => $questionIds,
         ], 201);
-    }
-
-    /**
-     * Decode the uploaded file into a list of question arrays.
-     *
-     * @throws ValidationException
-     */
-    private function decodeQuestionsFile(string $contents): array
-    {
-        $decoded = json_decode($contents, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
-            throw ValidationException::withMessages([
-                'file' => 'The file must contain a JSON array of questions.',
-            ]);
-        }
-
-        if (! array_is_list($decoded)) {
-            throw ValidationException::withMessages([
-                'file' => 'The file must contain a JSON array of questions, not an object.',
-            ]);
-        }
-
-        if (empty($decoded)) {
-            throw ValidationException::withMessages([
-                'file' => 'The uploaded file contains no questions.',
-            ]);
-        }
-
-        return $decoded;
     }
 
     /**
@@ -149,14 +134,10 @@ class QuestionController extends Controller
      */
     private function createQuestion(array $data): Question
     {
-        // `book_chapter_id` files the question under a chapter that already
-        // exists; book + chapter finds or creates one by name instead.
-        $chapter = isset($data['book_chapter_id'])
-            ? BookChapter::findOrFail($data['book_chapter_id'])
-            : BookChapter::firstOrCreate(
-                ['book' => $data['book'], 'chapter_number' => $data['chapter']],
-                ['num_verses' => $data['num_verses'] ?? 0]
-            );
+        $chapter = BookChapter::firstOrCreate(
+            ['book' => $data['book'], 'chapter_number' => $data['chapter']],
+            ['num_verses' => $data['num_verses'] ?? 0]
+        );
 
         $question = $chapter->questions()->create([
             'question_text' => $data['question_text'],

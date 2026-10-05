@@ -21,6 +21,7 @@ export function TodayScreen() {
     todayCompletedCount,
     todayTotal,
     allDone,
+    savedToday,
     notStarted,
     daysUntilStart,
     startDateLabel,
@@ -41,6 +42,7 @@ export function TodayScreen() {
     isSubmittingQuiz,
     quizResult,
     quizSubmitError,
+    quizSubmitted,
     allQuizAnswered,
     canSubmitQuiz,
     submitLabel,
@@ -138,6 +140,18 @@ export function TodayScreen() {
           <span className="reading-card__day">Day {apiMetadata?.current_day ?? '–'} of {apiMetadata?.total_days ?? '–'}</span>
         </div>
 
+        {savedToday ? (
+          // The save has just gone through, so the checklist is done with: the
+          // progress bar and the chapter list give way to the confirmation.
+          <div className="reading-card__complete">
+            <span className="reading-card__complete-icon-wrap">
+              <Check className="reading-card__complete-icon" />
+            </span>
+            <p className="reading-card__complete-text">You have completed today's reading!</p>
+            <p className="reading-card__complete-hint">Come back tomorrow for the next chapters.</p>
+          </div>
+        ) : (
+        <>
         {apiMetadata?.is_catch_up_mode && (
           <div style={{ backgroundColor: 'rgba(255, 165, 0, 0.2)', padding: '8px 12px', borderRadius: '8px', marginBottom: '12px', fontSize: '0.9rem', color: '#e67e22' }}>
             <strong>Catch-up mode:</strong> We added a few extra verses today to keep you on track!
@@ -175,21 +189,41 @@ export function TodayScreen() {
           )}
         </div>
 
-        <button
-          className="reading-card__save"
-          onClick={saveProgress}
-          disabled={!canSave}
-        >
-          {isSaving ? "Saving..." : "Save Progress"}
-        </button>
+        {/* Only offered when there is something to send — a reader who is
+            already caught up has nothing to save. Kept on screen while a save
+            is in flight so its "Saving..." state stays visible. */}
+        {(canSave || isSaving) && (
+          <button
+            className="reading-card__save"
+            onClick={saveProgress}
+            disabled={!canSave}
+          >
+            {isSaving ? "Saving..." : "Save Progress"}
+          </button>
+        )}
         {saveMessage && (
-          <div style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', color: saveMessage.type === 'success' ? 'var(--success-500)' : 'var(--ember-500)' }}>
+          <div style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', color: 'var(--ember-500)' }}>
             {saveMessage.text}
           </div>
+        )}
+        </>
         )}
       </div>
 
       {/* Today's Quiz Section */}
+      {quizSubmitted ? (
+        <div className="card quiz-empty">
+          <Check className="quiz-empty__icon quiz-empty__icon--done" />
+          <p className="quiz-empty__text">You have completed today's quiz.</p>
+          {/* The quiz disappears the moment it is handed in, so the score the
+              submission just produced is reported here instead. */}
+          <p className="quiz-empty__hint">
+            {quizResult
+              ? `You scored ${quizResult.score} of ${quizResult.answered} — saved to today's leaderboard.`
+              : "Come back tomorrow for a new set of questions."}
+          </p>
+        </div>
+      ) : (
       <div className="quiz-section">
         {!allDone && hasQuestions && (
           <div className="quiz-lock">
@@ -275,6 +309,7 @@ export function TodayScreen() {
           {quizSubmitError && <p className="quiz-card__error">{quizSubmitError}</p>}
         </div>
       </div>
+      )}
 
         </>
       )}
@@ -336,8 +371,8 @@ function ChapterGroup({ book, chapters, onToggle }) {
           <button
             key={chapter.label}
             onClick={() => onToggle(chapter.label)}
-            disabled={chapter.locked}
-            className={`chapter-toggle${chapter.done ? " chapter-toggle--done" : ""}${chapter.locked ? " chapter-toggle--locked" : ""}`}
+            disabled={chapter.locked || chapter.saved}
+            className={`chapter-toggle${chapter.done ? " chapter-toggle--done" : ""}${chapter.locked ? " chapter-toggle--locked" : ""}${chapter.saved ? " chapter-toggle--saved" : ""}`}
           >
             <div className={`chapter-toggle__check${chapter.done ? " chapter-toggle__check--done" : ""}`}>
               {chapter.done && <Check className="chapter-toggle__check-icon" strokeWidth={3} />}

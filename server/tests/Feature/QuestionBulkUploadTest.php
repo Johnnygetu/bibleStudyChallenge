@@ -25,13 +25,25 @@ class QuestionBulkUploadTest extends TestCase
     }
 
     /**
+     * A chapter for the rows to point at. The import never creates one, so
+     * every test that expects a write has to seed its own.
+     */
+    private function chapter(string $book = 'Genesis', int $number = 1): BookChapter
+    {
+        return BookChapter::create([
+            'book' => $book,
+            'chapter_number' => $number,
+            'num_verses' => 31,
+        ]);
+    }
+
+    /**
      * One question row in the shape the file is expected to hold.
      */
-    private function row(array $overrides = []): array
+    private function row(int $chapterId, array $overrides = []): array
     {
         return array_merge([
-            'book' => 'Genesis',
-            'chapter' => 1,
+            'book_chapter_id' => $chapterId,
             'question_text' => 'Who created the heavens and the earth?',
             'options' => ['a' => 'Moses', 'b' => 'God', 'c' => 'Abraham', 'd' => 'Noah'],
             'correct_option' => 'b',
@@ -40,38 +52,31 @@ class QuestionBulkUploadTest extends TestCase
 
     public function test_imports_questions_and_their_choices(): void
     {
-        $existingChapter = BookChapter::create(['book' => 'Genesis', 'chapter_number' => 1, 'num_verses' => 31]);
+        $genesis = $this->chapter();
+        $exodus = $this->chapter('Exodus', 3);
 
         $response = $this->upload(json_encode([
-            $this->row(),
-            $this->row([
-                'chapter' => 2,
-                'num_verses' => 25,
-                'question_text' => 'What did God plant in Eden?',
+            $this->row($genesis->id),
+            $this->row($exodus->id, [
+                'question_text' => 'Who was tending sheep when God called him?',
                 'correct_option' => 'a',
             ]),
         ]));
 
-        $response->assertStatus(201)
-            ->assertJson(['created' => 2]);
+        $response->assertStatus(201)->assertJson(['created' => 2]);
 
         $this->assertCount(2, $response->json('question_ids'));
         $this->assertDatabaseCount('questions', 2);
         $this->assertDatabaseCount('answers', 8);
 
-        // The first row landed in the chapter that already existed...
+        // Each question landed in the chapter its id named.
         $this->assertDatabaseHas('questions', [
             'question_text' => 'Who created the heavens and the earth?',
-            'chapter_id' => $existingChapter->id,
+            'chapter_id' => $genesis->id,
         ]);
-
-        // ...and the second one created its own chapter, keeping num_verses.
-        $newChapter = BookChapter::where('book', 'Genesis')->where('chapter_number', 2)->first();
-        $this->assertNotNull($newChapter);
-        $this->assertSame(25, (int) $newChapter->num_verses);
         $this->assertDatabaseHas('questions', [
-            'question_text' => 'What did God plant in Eden?',
-            'chapter_id' => $newChapter->id,
+            'question_text' => 'Who was tending sheep when God called him?',
+            'chapter_id' => $exodus->id,
         ]);
 
         // Every imported question has exactly one correct choice.
@@ -83,34 +88,38 @@ class QuestionBulkUploadTest extends TestCase
         }
     }
 
-    public function test_imports_into_an_existing_chapter_by_id(): void
+    public function test_never_creates_a_chapter(): void
     {
-        $chapter = BookChapter::create(['book' => 'John', 'chapter_number' => 3, 'num_verses' => 36]);
+        $chapter = $this->chapter();
 
-        $response = $this->upload(json_encode([
-            [
-                'book_chapter_id' => $chapter->id,
-                'question_text' => 'Who came to Jesus at night?',
-                'options' => ['a' => 'Nicodemus', 'b' => 'Peter', 'c' => 'John', 'd' => 'Andrew'],
-                'correct_option' => 'a',
-            ],
-        ]));
+        $this->upload(json_encode([$this->row($chapter->id)]))->assertStatus(201);
 
-        $response->assertStatus(201)->assertJson(['created' => 1]);
-
-        // The id alone placed the question: no book or chapter number needed,
-        // and no second chapter created.
-        $this->assertDatabaseHas('questions', [
-            'question_text' => 'Who came to Jesus at night?',
-            'chapter_id' => $chapter->id,
-        ]);
         $this->assertDatabaseCount('book_chapters', 1);
     }
 
     public function test_rejects_a_book_chapter_id_that_does_not_exist(): void
     {
+        $this->upload(json_encode([$this->row(9999)]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['questions.0.book_chapter_id']);
+
+        $this->assertDatabaseCount('questions', 0);
+        $this->assertDatabaseCount('book_chapters', 0);
+    }
+
+    public function test_requires_a_book_chapter_id_on_every_row(): void
+    {
+        $this->chapter();
+
+        // A book and chapter number are not a substitute for the id.
         $this->upload(json_encode([
-            array_merge($this->row(), ['book_chapter_id' => 9999]),
+            [
+                'book' => 'Genesis',
+                'chapter' => 1,
+                'question_text' => 'Where does this one belong?',
+                'options' => ['a' => 'Moses', 'b' => 'God', 'c' => 'Abraham', 'd' => 'Noah'],
+                'correct_option' => 'a',
+            ],
         ]))
             ->assertStatus(422)
             ->assertJsonValidationErrors(['questions.0.book_chapter_id']);
@@ -118,40 +127,34 @@ class QuestionBulkUploadTest extends TestCase
         $this->assertDatabaseCount('questions', 0);
     }
 
-    public function test_every_row_needs_a_chapter_id_or_a_book_and_chapter(): void
-    {
-        $this->upload(json_encode([
-            [
-                'question_text' => 'Where does this one belong?',
-                'options' => ['a' => 'Moses', 'b' => 'God', 'c' => 'Abraham', 'd' => 'Noah'],
-                'correct_option' => 'a',
-            ],
-        ]))
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['questions.0.book', 'questions.0.chapter']);
-
-        $this->assertDatabaseCount('questions', 0);
-        $this->assertDatabaseCount('book_chapters', 0);
-    }
-
     public function test_ignores_keys_a_row_does_not_use(): void
     {
+        $chapter = $this->chapter();
+
         $this->upload(json_encode([
-            $this->row([
+            $this->row($chapter->id, [
                 'options' => ['a' => 'Moses', 'b' => 'God', 'c' => 'Abraham', 'd' => 'Noah', 'e' => 'Adam'],
+                'book' => 'Leviticus',
+                'chapter' => 9,
+                'num_verses' => 12,
                 'notes' => 'Not a question column.',
             ]),
         ]))->assertStatus(201);
 
-        // Only the four validated options become choices.
+        // Only the four validated options become choices, and the stray book
+        // and chapter did not move the question or create a chapter.
         $this->assertDatabaseCount('answers', 4);
+        $this->assertDatabaseCount('book_chapters', 1);
+        $this->assertDatabaseHas('questions', ['chapter_id' => $chapter->id]);
     }
 
     public function test_rejects_invalid_rows_without_importing_anything(): void
     {
+        $chapter = $this->chapter();
+
         $response = $this->upload(json_encode([
-            $this->row(),
-            $this->row(['correct_option' => 'e']),
+            $this->row($chapter->id),
+            $this->row($chapter->id, ['correct_option' => 'e']),
         ]));
 
         $response->assertStatus(422)
@@ -173,7 +176,7 @@ class QuestionBulkUploadTest extends TestCase
 
     public function test_rejects_json_that_is_not_an_array(): void
     {
-        $this->upload(json_encode(['questions' => [$this->row()]]))
+        $this->upload(json_encode(['questions' => [$this->row(1)]]))
             ->assertStatus(422)
             ->assertJsonValidationErrors('file');
 
@@ -193,13 +196,14 @@ class QuestionBulkUploadTest extends TestCase
 
     public function test_allows_duplicate_questions(): void
     {
-        $payload = json_encode([$this->row()]);
+        $chapter = $this->chapter();
+        $payload = json_encode([$this->row($chapter->id)]);
 
         $this->upload($payload)->assertStatus(201);
         $this->upload($payload)->assertStatus(201);
 
         $this->assertDatabaseCount('questions', 2);
         $this->assertDatabaseCount('answers', 8);
-        $this->assertSame(1, BookChapter::where('book', 'Genesis')->where('chapter_number', 1)->count());
+        $this->assertDatabaseCount('book_chapters', 1);
     }
 }

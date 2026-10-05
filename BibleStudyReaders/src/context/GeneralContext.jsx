@@ -5,8 +5,9 @@ import { useDateOverride } from "@/context/DateOverrideContext";
 // The single source for the backend URL across the reader app — provided to
 // every consumer through this context. Swap in a tunnel URL (e.g. ngrok) or
 // set VITE_API_URL per environment; otherwise it points at the local server.
-// export const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
-export const apiUrl = import.meta.env.VITE_API_URL || 'https://bibleapi.pharmasoft-et.com/api';
+
+export const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+// export const apiUrl = import.meta.env.VITE_API_URL || 'https://bibleapi.pharmasoft-et.com/api';
 
 export const GeneralContext = createContext(null);
 

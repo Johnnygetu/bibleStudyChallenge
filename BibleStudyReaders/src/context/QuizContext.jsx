@@ -16,7 +16,7 @@ export function QuizProvider({ children }) {
   const { apiUrl } = useGeneralContext();
   const { user } = useUserContext();
   const { buildUrl } = useDateOverride();
-  const { chapterKey, allDone, reloadToken } = useReadingContext();
+  const { chapterKey, allDone, quizDoneToday, reloadToken } = useReadingContext();
   const { reload: reloadLeaderboard } = useLeaderboardContext();
 
   const [quizQuestions, setQuizQuestions] = useState([]);
@@ -29,8 +29,13 @@ export function QuizProvider({ children }) {
   const [quizSubmitError, setQuizSubmitError] = useState(null);
   const [questionsToken, setQuestionsToken] = useState(0);
 
+  // Today's quiz is over once it has been handed in — in this session or on an
+  // earlier visit. There is nothing left to fetch or answer, so the screen
+  // drops the whole quiz in favour of a confirmation.
+  const quizSubmitted = quizDoneToday || !!quizResult;
+
   useEffect(() => {
-    if (!chapterKey) {
+    if (!chapterKey || quizSubmitted) {
       setQuizQuestions([]);
       setHasQuestions(false);
       setQuestionError(null);
@@ -67,7 +72,7 @@ export function QuizProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [apiUrl, buildUrl, chapterKey, questionsToken, reloadToken]);
+  }, [apiUrl, buildUrl, chapterKey, questionsToken, quizSubmitted, reloadToken]);
 
   const reloadQuestions = useCallback(() => setQuestionsToken((token) => token + 1), []);
 
@@ -158,6 +163,7 @@ export function QuizProvider({ children }) {
     isSubmittingQuiz,
     quizResult,
     quizSubmitError,
+    quizSubmitted,
     allQuizAnswered,
     canSubmitQuiz,
     submitLabel,

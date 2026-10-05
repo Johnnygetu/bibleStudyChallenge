@@ -6,6 +6,7 @@ use App\Models\BookChapter;
 use App\Models\Order;
 use App\Models\Plan;
 use App\Models\Reader;
+use App\Models\Score;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -79,5 +80,37 @@ class DailyReadingsTest extends TestCase
         $response->assertOk()
             ->assertJsonFragment(['days_until_start' => 0])
             ->assertJsonFragment(['has_started' => true]);
+    }
+
+    public function test_reports_that_todays_quiz_has_not_been_submitted(): void
+    {
+        $reader = $this->makeReader();
+        $plan = $this->makePlan(now()->subDay()->toDateString());
+
+        $this->getJson("/api/readers/{$reader->id}/plans/{$plan->id}/daily-readings")
+            ->assertOk()
+            ->assertJsonFragment(['has_submitted_quiz_today' => false]);
+    }
+
+    public function test_reports_that_todays_quiz_has_been_submitted(): void
+    {
+        $reader = $this->makeReader();
+        $plan = $this->makePlan(now()->subDay()->toDateString());
+
+        // A score belonging to an earlier day is that day's, not today's.
+        $yesterdaysScore = $reader->scores()->create(['score' => 2]);
+        Score::whereKey($yesterdaysScore->id)->update(['created_at' => now()->subDay()]);
+
+        $url = "/api/readers/{$reader->id}/plans/{$plan->id}/daily-readings";
+
+        $this->getJson($url)
+            ->assertOk()
+            ->assertJsonFragment(['has_submitted_quiz_today' => false]);
+
+        $reader->scores()->create(['score' => 3]);
+
+        $this->getJson($url)
+            ->assertOk()
+            ->assertJsonFragment(['has_submitted_quiz_today' => true]);
     }
 }

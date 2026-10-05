@@ -6,19 +6,18 @@ import { useQuestionsContext } from '@/context/QuestionsContext';
 // saves the admin a pointless upload before the same answer comes back.
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
-// A file that imports as-is, so the expected shape is never a guessing game.
+// The exact shape the server expects. The chapter ids are placeholders — they
+// have to be ids that already exist in the database, so this is a template to
+// fill in rather than a file to import untouched.
 const EXAMPLE_QUESTIONS = [
   {
-    book: 'Genesis',
-    chapter: 1,
+    book_chapter_id: 1,
     question_text: 'Who created the heavens and the earth?',
     options: { a: 'Moses', b: 'God', c: 'Abraham', d: 'Noah' },
     correct_option: 'b',
-    num_verses: 31,
   },
   {
-    book: 'Genesis',
-    chapter: 2,
+    book_chapter_id: 2,
     question_text: 'What did God plant in Eden?',
     options: { a: 'A garden', b: 'A vineyard', c: 'An olive grove', d: 'A field of wheat' },
     correct_option: 'a',
@@ -251,10 +250,9 @@ export default function BulkUpload({ onBack, onImported }) {
       </div>
 
       <p className="bulk-note">
-        Place each question with a book and a chapter, or with a book_chapter_id to file it
-        under a chapter that already exists. Nothing is imported unless every question in
-        the file is valid, and uploading the same file twice adds a second copy of every
-        question.
+        Every question needs a book_chapter_id naming a chapter that already exists — the
+        import never creates chapters. Nothing is imported unless every question in the file
+        is valid, and uploading the same file twice adds a second copy of every question.
       </p>
     </div>
   );

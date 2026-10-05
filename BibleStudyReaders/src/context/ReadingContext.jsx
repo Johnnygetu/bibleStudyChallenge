@@ -23,6 +23,10 @@ export function ReadingProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState(null);
+  // Set the moment a save succeeds, and only then — the reading card swaps the
+  // checklist for the completion message in response to the click, not because
+  // an earlier visit had already finished the day.
+  const [savedToday, setSavedToday] = useState(false);
   const [error, setError] = useState(null);
   // Bumped by reload(); re-runs the fetch and, through it, the quiz fetch.
   const [reloadToken, setReloadToken] = useState(0);
@@ -109,19 +113,36 @@ export function ReadingProvider({ children }) {
   // rather than on every render.
   const chapterKey = useMemo(() => chapterIds.join(","), [chapterIds]);
 
+  // What the last fetch said the server already has stored for today. Kept
+  // apart from the local ticks so "the day is already saved" can be told from
+  // "every box is ticked but nothing has been sent yet" — the second still
+  // needs saving, the first does not.
+  const savedLabels = useMemo(
+    () =>
+      new Set(
+        (apiMetadata?.readings ?? [])
+          .filter((reading) => reading.is_completed)
+          .map(chapterLabel)
+      ),
+    [apiMetadata]
+  );
+
   // Chapters unlock in reading order: the first chapter is always clickable and
   // each one after it unlocks once the chapter above it is ticked. A chapter
-  // that is already ticked stays clickable so it can be un-ticked.
+  // that is already ticked stays clickable so it can be un-ticked — unless the
+  // server has it stored, in which case it is fixed and only counts towards
+  // unlocking the chapters below it.
   const enabledLabels = useMemo(() => {
     const enabled = new Set();
     allTodayChapters.forEach((label, index) => {
+      if (savedLabels.has(label)) return;
       const previous = allTodayChapters[index - 1];
       if (index === 0 || completedLabels.has(label) || completedLabels.has(previous)) {
         enabled.add(label);
       }
     });
     return enabled;
-  }, [allTodayChapters, completedLabels]);
+  }, [allTodayChapters, completedLabels, savedLabels]);
 
   const todayGroups = useMemo(() => {
     const groups = new Map();
@@ -134,22 +155,38 @@ export function ReadingProvider({ children }) {
           chapters: [],
         });
       }
+      const isSaved = savedLabels.has(label);
       groups.get(reading.book).chapters.push({
         label,
         chapterNum: reading.chapter_number,
         done: completedLabels.has(label),
-        locked: !enabledLabels.has(label),
+        // Saved chapters stay ticked but stop responding: the server already
+        // has them, so a tick taken back here would put the screen out of step
+        // with the stored progress.
+        saved: isSaved,
+        locked: !enabledLabels.has(label) && !isSaved,
       });
     });
     return [...groups.values()];
-  }, [readings, completedLabels, enabledLabels]);
+  }, [readings, completedLabels, enabledLabels, savedLabels]);
 
   const todayCompletedCount = allTodayChapters.filter((label) => completedLabels.has(label)).length;
   const todayTotal = allTodayChapters.length;
   const allDone = todayTotal > 0 && todayCompletedCount === todayTotal;
 
+  const hasUnsavedChanges = useMemo(() => {
+    if (completedLabels.size !== savedLabels.size) return true;
+    for (const label of completedLabels) {
+      if (!savedLabels.has(label)) return true;
+    }
+    return false;
+  }, [completedLabels, savedLabels]);
+
   const daysUntilStart = apiMetadata?.days_until_start ?? 0;
   const notStarted = daysUntilStart > 0;
+  // True once today's quiz has been handed in, whether that happened in this
+  // session or on an earlier visit.
+  const quizDoneToday = apiMetadata?.has_submitted_quiz_today ?? false;
   const startDateLabel = apiMetadata?.starting_day
     ? new Date(`${apiMetadata.starting_day}T00:00:00`).toLocaleDateString("en-US", {
         weekday: "long",
@@ -203,7 +240,9 @@ export function ReadingProvider({ children }) {
       });
       if (res.ok) {
         hapticNotification("success");
-        setSaveMessage({ type: "success", text: "Progress saved successfully!" });
+        // The card swaps the checklist for the completion message, which is
+        // the confirmation — a toast on top of it would just repeat itself.
+        setSavedToday(true);
         // Re-fetch daily readings so the UI reflects the newly saved progress.
         reload();
       } else {
@@ -219,7 +258,10 @@ export function ReadingProvider({ children }) {
     }
   }, [apiUrl, apiMetadata, buildUrl, completedLabels, readings, reload, user]);
 
-  const canSave = !!apiMetadata && completedLabels.size > 0 && !isSaving;
+  // Hidden entirely when the ticked chapters already match what the server
+  // stored, so being caught up never invites a save that would change nothing.
+  const canSave =
+    !!apiMetadata && completedLabels.size > 0 && hasUnsavedChanges && !isSaving;
 
   const value = {
     apiMetadata,
@@ -227,7 +269,9 @@ export function ReadingProvider({ children }) {
     todayCompletedCount,
     todayTotal,
     allDone,
+    savedToday,
     notStarted,
+    quizDoneToday,
     daysUntilStart,
     startDateLabel,
     chapterIds,
