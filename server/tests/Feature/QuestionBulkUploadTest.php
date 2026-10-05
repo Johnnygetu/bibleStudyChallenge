@@ -83,6 +83,70 @@ class QuestionBulkUploadTest extends TestCase
         }
     }
 
+    public function test_imports_into_an_existing_chapter_by_id(): void
+    {
+        $chapter = BookChapter::create(['book' => 'John', 'chapter_number' => 3, 'num_verses' => 36]);
+
+        $response = $this->upload(json_encode([
+            [
+                'book_chapter_id' => $chapter->id,
+                'question_text' => 'Who came to Jesus at night?',
+                'options' => ['a' => 'Nicodemus', 'b' => 'Peter', 'c' => 'John', 'd' => 'Andrew'],
+                'correct_option' => 'a',
+            ],
+        ]));
+
+        $response->assertStatus(201)->assertJson(['created' => 1]);
+
+        // The id alone placed the question: no book or chapter number needed,
+        // and no second chapter created.
+        $this->assertDatabaseHas('questions', [
+            'question_text' => 'Who came to Jesus at night?',
+            'chapter_id' => $chapter->id,
+        ]);
+        $this->assertDatabaseCount('book_chapters', 1);
+    }
+
+    public function test_rejects_a_book_chapter_id_that_does_not_exist(): void
+    {
+        $this->upload(json_encode([
+            array_merge($this->row(), ['book_chapter_id' => 9999]),
+        ]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['questions.0.book_chapter_id']);
+
+        $this->assertDatabaseCount('questions', 0);
+    }
+
+    public function test_every_row_needs_a_chapter_id_or_a_book_and_chapter(): void
+    {
+        $this->upload(json_encode([
+            [
+                'question_text' => 'Where does this one belong?',
+                'options' => ['a' => 'Moses', 'b' => 'God', 'c' => 'Abraham', 'd' => 'Noah'],
+                'correct_option' => 'a',
+            ],
+        ]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['questions.0.book', 'questions.0.chapter']);
+
+        $this->assertDatabaseCount('questions', 0);
+        $this->assertDatabaseCount('book_chapters', 0);
+    }
+
+    public function test_ignores_keys_a_row_does_not_use(): void
+    {
+        $this->upload(json_encode([
+            $this->row([
+                'options' => ['a' => 'Moses', 'b' => 'God', 'c' => 'Abraham', 'd' => 'Noah', 'e' => 'Adam'],
+                'notes' => 'Not a question column.',
+            ]),
+        ]))->assertStatus(201);
+
+        // Only the four validated options become choices.
+        $this->assertDatabaseCount('answers', 4);
+    }
+
     public function test_rejects_invalid_rows_without_importing_anything(): void
     {
         $response = $this->upload(json_encode([

@@ -42,7 +42,10 @@ class QuestionController extends Controller
      * POST /api/questions/bulk  (multipart/form-data, field: file)
      *
      * The file holds a JSON array of the same objects POST /questions accepts.
-     * Nothing is written unless every row passes validation.
+     * A row says where its question belongs either by `book_chapter_id`, which
+     * files it under a chapter that already exists, or by `book` + `chapter`,
+     * which finds or creates that chapter. Nothing is written unless every row
+     * passes validation.
      */
     public function bulkStore(Request $request)
     {
@@ -58,8 +61,10 @@ class QuestionController extends Controller
         // request with its index and no rows are written.
         $validator = Validator::make(['questions' => $questions], [
             'questions' => 'required|array|min:1',
-            'questions.*.book' => 'required|string|max:100',
-            'questions.*.chapter' => 'required|integer|min:1',
+            'questions.*' => 'required|array',
+            'questions.*.book_chapter_id' => 'nullable|integer|exists:book_chapters,id',
+            'questions.*.book' => 'nullable|string|max:100',
+            'questions.*.chapter' => 'nullable|integer|min:1',
             'questions.*.question_text' => 'required|string',
             'questions.*.options' => 'required|array',
             'questions.*.options.a' => 'required|string',
@@ -69,6 +74,30 @@ class QuestionController extends Controller
             'questions.*.correct_option' => 'required|in:a,b,c,d',
             'questions.*.num_verses' => 'nullable|integer|min:0',
         ]);
+
+        // Every row has to say where its question goes: a `book_chapter_id`
+        // for a chapter that already exists, or a `book` + `chapter` pair to
+        // find or create one. Wildcard rules are expanded to concrete indices
+        // before `required_without` resolves its parameter, so "one or the
+        // other" can't be expressed in the rule array — it is checked here,
+        // where the row index is still known and the error lands on the field.
+        $validator->after(function ($validator) use ($questions) {
+            foreach ($questions as $index => $question) {
+                if (! is_array($question) || ! empty($question['book_chapter_id'])) {
+                    continue;
+                }
+
+                $message = 'Give the question a book_chapter_id, or a book and a chapter.';
+
+                if (empty($question['book'])) {
+                    $validator->errors()->add("questions.{$index}.book", $message);
+                }
+
+                if (empty($question['chapter'])) {
+                    $validator->errors()->add("questions.{$index}.chapter", $message);
+                }
+            }
+        });
 
         if ($validator->fails()) {
             throw new ValidationException($validator);
@@ -120,18 +149,22 @@ class QuestionController extends Controller
      */
     private function createQuestion(array $data): Question
     {
-        $chapter = BookChapter::firstOrCreate(
-            ['book' => $data['book'], 'chapter_number' => $data['chapter']],
-            ['num_verses' => $data['num_verses'] ?? 0]
-        );
+        // `book_chapter_id` files the question under a chapter that already
+        // exists; book + chapter finds or creates one by name instead.
+        $chapter = isset($data['book_chapter_id'])
+            ? BookChapter::findOrFail($data['book_chapter_id'])
+            : BookChapter::firstOrCreate(
+                ['book' => $data['book'], 'chapter_number' => $data['chapter']],
+                ['num_verses' => $data['num_verses'] ?? 0]
+            );
 
         $question = $chapter->questions()->create([
             'question_text' => $data['question_text'],
         ]);
 
-        foreach ($data['options'] as $letter => $text) {
+        foreach (['a', 'b', 'c', 'd'] as $letter) {
             $question->answers()->create([
-                'answer_text' => $text,
+                'answer_text' => $data['options'][$letter],
                 'correct_answer' => $letter === $data['correct_option'],
             ]);
         }

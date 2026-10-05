@@ -251,8 +251,10 @@ export default function BulkUpload({ onBack, onImported }) {
       </div>
 
       <p className="bulk-note">
-        Nothing is imported unless every question in the file is valid, and uploading the
-        same file twice adds a second copy of every question.
+        Place each question with a book and a chapter, or with a book_chapter_id to file it
+        under a chapter that already exists. Nothing is imported unless every question in
+        the file is valid, and uploading the same file twice adds a second copy of every
+        question.
       </p>
     </div>
   );
