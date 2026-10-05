@@ -24,8 +24,16 @@ function loadStored() {
   }
 }
 
+function todayInputValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function DateOverrideProvider({ children }) {
   const [overrideDate, setOverrideDateRaw] = useState(loadStored);
+
+  // The test bar's own UI state lives here too, so the bar itself only renders.
+  const [isBarExpanded, setBarExpanded] = useState(false);
+  const [dateInputValue, setDateInputValue] = useState(() => overrideDate || todayInputValue());
 
   const setOverrideDate = useCallback((date) => {
     if (date) {
@@ -44,7 +52,49 @@ export function DateOverrideProvider({ children }) {
     [overrideDate]
   );
 
-  const value = { overrideDate, setOverrideDate, buildUrl };
+  const openBar = useCallback(() => setBarExpanded(true), []);
+  const closeBar = useCallback(() => setBarExpanded(false), []);
+
+  // Applying, resetting and stepping all reload the window, so every screen
+  // re-fetches against the new day.
+  const applyOverride = useCallback(() => {
+    setOverrideDate(dateInputValue);
+    setBarExpanded(false);
+    window.location.reload();
+  }, [dateInputValue, setOverrideDate]);
+
+  const resetOverride = useCallback(() => {
+    setOverrideDate(null);
+    setDateInputValue(todayInputValue());
+    setBarExpanded(false);
+    window.location.reload();
+  }, [setOverrideDate]);
+
+  const stepDay = useCallback(
+    (delta) => {
+      const date = new Date(dateInputValue);
+      date.setDate(date.getDate() + delta);
+      const next = date.toISOString().slice(0, 10);
+      setDateInputValue(next);
+      setOverrideDate(next);
+      window.location.reload();
+    },
+    [dateInputValue, setOverrideDate]
+  );
+
+  const value = {
+    overrideDate,
+    setOverrideDate,
+    buildUrl,
+    isBarExpanded,
+    openBar,
+    closeBar,
+    dateInputValue,
+    setDateInputValue,
+    applyOverride,
+    resetOverride,
+    stepDay,
+  };
 
   return (
     <DateOverrideContext.Provider value={value}>

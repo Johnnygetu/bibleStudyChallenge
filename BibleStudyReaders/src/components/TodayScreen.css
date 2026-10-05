@@ -295,6 +295,27 @@
   border: 1px solid rgba(2, 41, 66, 0.3);
 }
 
+.chapter-toggle--locked {
+  background-color: transparent;
+  border: 1px dashed rgba(229, 229, 229, 0.5);
+  cursor: not-allowed;
+}
+
+.chapter-toggle--locked .chapter-toggle__label {
+  color: var(--ink-600);
+}
+
+.chapter-toggle--locked:active {
+  transform: none;
+}
+
+.chapter-toggle__lock {
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-left: auto;
+  color: var(--ink-600);
+}
+
 .chapter-toggle__check {
   width: 1.5rem;
   height: 1.5rem;

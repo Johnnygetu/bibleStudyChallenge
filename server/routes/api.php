@@ -15,6 +15,7 @@ Route::get('test', fn () => response(['message' => 'Test'], 200));
 Route::apiResource('admins', AdminController::class);
 Route::apiResource('readers', ReaderController::class);
 Route::get('questions/by-chapters', [QuestionController::class, 'byChapters'])->name('questions.by-chapters');
+Route::post('questions/bulk', [QuestionController::class, 'bulkStore'])->name('questions.bulk');
 Route::apiResource('questions', QuestionController::class);
 Route::apiResource('groups', GroupController::class);
 Route::post('groups/assign-random', [GroupController::class, 'assignRandom'])->name('groups.assign-random');

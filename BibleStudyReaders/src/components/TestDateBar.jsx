@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { CalendarDays, X, RotateCcw } from "lucide-react";
 import { useDateOverride } from "@/context/DateOverrideContext";
 import "./TestDateBar.css";
@@ -11,42 +10,27 @@ import "./TestDateBar.css";
  * When collapsed (default), it shows a tiny pill. Tap to expand the date
  * picker. When an override is active, the bar stays highlighted with the
  * chosen date visible.
+ *
+ * All of the state and the reload behaviour live in DateOverrideContext.
  */
 export function TestDateBar() {
-  const { overrideDate, setOverrideDate } = useDateOverride();
-  const [expanded, setExpanded] = useState(false);
-  const [inputValue, setInputValue] = useState(
-    overrideDate || new Date().toISOString().slice(0, 10)
-  );
+  const {
+    overrideDate,
+    isBarExpanded,
+    openBar,
+    closeBar,
+    dateInputValue,
+    setDateInputValue,
+    applyOverride,
+    resetOverride,
+    stepDay,
+  } = useDateOverride();
 
-  const handleApply = () => {
-    setOverrideDate(inputValue);
-    setExpanded(false);
-    // Force a reload so TodayScreen re-fetches with the new date
-    window.location.reload();
-  };
-
-  const handleReset = () => {
-    setOverrideDate(null);
-    setInputValue(new Date().toISOString().slice(0, 10));
-    setExpanded(false);
-    window.location.reload();
-  };
-
-  const handleStepDay = (delta) => {
-    const d = new Date(inputValue);
-    d.setDate(d.getDate() + delta);
-    const next = d.toISOString().slice(0, 10);
-    setInputValue(next);
-    setOverrideDate(next);
-    window.location.reload();
-  };
-
-  if (!expanded) {
+  if (!isBarExpanded) {
     return (
       <button
         className={`test-bar__pill ${overrideDate ? "test-bar__pill--active" : ""}`}
-        onClick={() => setExpanded(true)}
+        onClick={openBar}
         title="Open date override"
       >
         <CalendarDays className="test-bar__pill-icon" />
@@ -66,7 +50,7 @@ export function TestDateBar() {
         </div>
         <button
           className="test-bar__close"
-          onClick={() => setExpanded(false)}
+          onClick={closeBar}
           title="Close"
         >
           <X size={16} />
@@ -76,7 +60,7 @@ export function TestDateBar() {
       <div className="test-bar__controls">
         <button
           className="test-bar__step"
-          onClick={() => handleStepDay(-1)}
+          onClick={() => stepDay(-1)}
           title="Previous day"
         >
           ‹
@@ -84,12 +68,12 @@ export function TestDateBar() {
         <input
           type="date"
           className="test-bar__input"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
+          value={dateInputValue}
+          onChange={(event) => setDateInputValue(event.target.value)}
         />
         <button
           className="test-bar__step"
-          onClick={() => handleStepDay(1)}
+          onClick={() => stepDay(1)}
           title="Next day"
         >
           ›
@@ -97,11 +81,11 @@ export function TestDateBar() {
       </div>
 
       <div className="test-bar__actions">
-        <button className="test-bar__apply" onClick={handleApply}>
+        <button className="test-bar__apply" onClick={applyOverride}>
           Apply
         </button>
         {overrideDate && (
-          <button className="test-bar__reset" onClick={handleReset}>
+          <button className="test-bar__reset" onClick={resetOverride}>
             <RotateCcw size={13} />
             Reset
           </button>

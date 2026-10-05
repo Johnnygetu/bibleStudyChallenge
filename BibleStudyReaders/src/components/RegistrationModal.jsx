@@ -1,69 +1,19 @@
-import { useEffect, useState } from "react";
 import { useUserContext } from "@/context/UserContext";
-import { hapticNotification } from "@/lib/telegram";
 import "./RegistrationModal.css";
 
-// Digits, an optional leading +, and the usual separators people type.
-const PHONE_INPUT_PATTERN = /^\+?[\d\s\-()]{6,20}$/;
-
-// Store a single canonical form so the unique phone_number constraint means
-// what it should: "+1 (234) 567-8901" and "+12345678901" are the same person.
-function normalizePhone(value) {
-  return value.replace(/[\s\-()]/g, "");
-}
-
-// The user logic (Telegram hydration, chat id, backend persistence) lives in
-// UserContext; this modal only collects the details the user must type.
+// The user logic (Telegram hydration, chat id, validation, backend
+// persistence) lives in UserContext; this modal only renders the form.
 export function RegistrationModal() {
-  const { suggestedName, register, telegramStatus, retryTelegram } = useUserContext();
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-
-  // The chat id is optional for now, so Telegram only ever *adds* detail —
-  // it never blocks the form.
-  const telegramWaiting = telegramStatus === "loading";
-  const telegramFailed = telegramStatus === "failed";
-
-  // Prefill the name with the Telegram user's name (first + last) once it
-  // arrives — without clobbering anything the user has already typed.
-  useEffect(() => {
-    setFullName((prev) => prev || suggestedName);
-  }, [suggestedName]);
-
-  // Surface the "Telegram never loaded" failure once, loudly.
-  useEffect(() => {
-    if (telegramFailed) hapticNotification("error");
-  }, [telegramFailed]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const trimmed = fullName.trim();
-    const trimmedPhone = phone.trim();
-    // Enter in the input can still submit the form — re-check the gate here.
-    if (!trimmed || !trimmedPhone || submitting) return;
-
-    if (!PHONE_INPUT_PATTERN.test(trimmedPhone)) {
-      setError("Enter a valid phone number, e.g. 0912345678.");
-      hapticNotification("error");
-      return;
-    }
-
-    setSubmitting(true);
-    setError("");
-    try {
-      // Creates the reader in the backend; App then closes this modal and
-      // shows the "you're registered" notice from the user context.
-      await register(trimmed, normalizePhone(trimmedPhone));
-      hapticNotification("success");
-    } catch (err) {
-      setError(err?.message || "Something went wrong. Please try again.");
-      hapticNotification("error");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const {
+    registrationForm,
+    setRegistrationField,
+    submitRegistration,
+    registrationError,
+    isRegistering,
+    telegramWaiting,
+    telegramFailed,
+    retryTelegram,
+  } = useUserContext();
 
   return (
     <div className="registration">
@@ -76,7 +26,7 @@ export function RegistrationModal() {
           <h2 className="registration__title">Welcome!</h2>
           <p className="registration__subtitle">Please enter your details to get started with the Bible Study Challenge.</p>
 
-          <form onSubmit={handleSubmit} className="registration__form">
+          <form onSubmit={submitRegistration} className="registration__form">
             <div className="field">
               <label htmlFor="fullName" className="field__label">
                 Full Name
@@ -85,8 +35,8 @@ export function RegistrationModal() {
                 id="fullName"
                 type="text"
                 required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                value={registrationForm.fullName}
+                onChange={(event) => setRegistrationField("fullName", event.target.value)}
                 className="field__input"
                 placeholder="John Doe"
               />
@@ -103,8 +53,8 @@ export function RegistrationModal() {
                 autoComplete="tel"
                 required
                 maxLength={20}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                value={registrationForm.phone}
+                onChange={(event) => setRegistrationField("phone", event.target.value)}
                 className="field__input"
                 placeholder="0912345678"
               />
@@ -122,15 +72,15 @@ export function RegistrationModal() {
               </div>
             )}
 
-            {error && (
+            {registrationError && (
               <p className="registration__error" role="alert">
-                {error}
+                {registrationError}
               </p>
             )}
 
-            <button type="submit" className="btn-primary registration__submit" disabled={submitting}>
+            <button type="submit" className="btn-primary registration__submit" disabled={isRegistering}>
               <span>
-                {submitting ? "Creating your account…" : telegramWaiting ? "Connecting to Telegram…" : "Start Journey"}
+                {isRegistering ? "Creating your account…" : telegramWaiting ? "Connecting to Telegram…" : "Start Journey"}
               </span>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14"></path>

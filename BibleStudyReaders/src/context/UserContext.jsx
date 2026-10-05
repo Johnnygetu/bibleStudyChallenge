@@ -1,8 +1,17 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { isTelegramContext, waitForTelegramUser } from "@/lib/telegram";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { hapticNotification, isTelegramContext, waitForTelegramUser } from "@/lib/telegram";
 import { useGeneralContext } from "@/context/GeneralContext";
 
 const STORAGE_KEY = "bible_challenge_user_details";
+
+// Digits, an optional leading +, and the usual separators people type.
+const PHONE_INPUT_PATTERN = /^\+?[\d\s\-()]{6,20}$/;
+
+// Store a single canonical form so the unique phone_number constraint means
+// what it should: "+1 (234) 567-8901" and "+12345678901" are the same person.
+function normalizePhone(value) {
+  return value.replace(/[\s\-()]/g, "");
+}
 
 function loadStoredUser() {
   try {
@@ -41,7 +50,7 @@ export function UserProvider({ children }) {
     !TELEGRAM_REQUIRED && !isTelegramContext() ? "ready" : "loading"
   );
   const [telegramAttempt, setTelegramAttempt] = useState(0);
-  const { apiUrl } = useGeneralContext();
+  const { apiUrl, profile } = useGeneralContext();
 
   // Hydrate the Telegram user when it becomes available (first open).
   // Bumping telegramAttempt (Retry) re-runs the wait.
@@ -204,16 +213,85 @@ export function UserProvider({ children }) {
       });
   }, [telegramUser, user, apiUrl]);
 
+  // -------------------------------------------------------------------------
+  // Registration form
+  // The modal that collects the name and phone number renders from this state,
+  // so it stays presentational.
+  // -------------------------------------------------------------------------
+  const suggestedName = composeFullName(telegramUser);
+  const [registrationForm, setRegistrationForm] = useState({ fullName: "", phone: "" });
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registrationError, setRegistrationError] = useState("");
+
+  // Prefill the name with the Telegram user's name (first + last) once it
+  // arrives — without clobbering anything the user has already typed.
+  useEffect(() => {
+    setRegistrationForm((prev) => (prev.fullName ? prev : { ...prev, fullName: suggestedName }));
+  }, [suggestedName]);
+
+  // The chat id is optional for now, so Telegram only ever *adds* detail — it
+  // never blocks the form.
+  const telegramWaiting = telegramStatus === "loading";
+  const telegramFailed = telegramStatus === "failed";
+
+  // Surface the "Telegram never loaded" failure once, loudly.
+  useEffect(() => {
+    if (telegramFailed) hapticNotification("error");
+  }, [telegramFailed]);
+
+  const setRegistrationField = useCallback((field, value) => {
+    setRegistrationForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const submitRegistration = useCallback(
+    async (event) => {
+      event.preventDefault();
+      const fullName = registrationForm.fullName.trim();
+      const phone = registrationForm.phone.trim();
+      // Enter in the input can still submit the form — re-check the gate here.
+      if (!fullName || !phone || isRegistering) return;
+
+      if (!PHONE_INPUT_PATTERN.test(phone)) {
+        setRegistrationError("Enter a valid phone number, e.g. 0912345678.");
+        hapticNotification("error");
+        return;
+      }
+
+      setIsRegistering(true);
+      setRegistrationError("");
+      try {
+        // Creates the reader in the backend; App then closes the modal and
+        // shows the "you're registered" notice.
+        await register(fullName, normalizePhone(phone));
+        hapticNotification("success");
+      } catch (err) {
+        setRegistrationError(err?.message || "Something went wrong. Please try again.");
+        hapticNotification("error");
+      } finally {
+        setIsRegistering(false);
+      }
+    },
+    [isRegistering, register, registrationForm]
+  );
+
   const value = {
     user,
     isRegistered: user !== null,
+    displayName: user?.fullName?.trim() || profile.first_name,
     telegramUser,
     telegramStatus,
+    telegramWaiting,
+    telegramFailed,
     retryTelegram,
     notice,
     dismissNotice,
-    suggestedName: composeFullName(telegramUser),
+    suggestedName,
     register,
+    registrationForm,
+    setRegistrationField,
+    submitRegistration,
+    isRegistering,
+    registrationError,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

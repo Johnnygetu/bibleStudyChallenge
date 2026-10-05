@@ -6,6 +6,8 @@ use App\Models\BookChapter;
 use App\Models\Question;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class QuestionController extends Controller
 {
@@ -29,27 +31,112 @@ class QuestionController extends Controller
             'num_verses' => 'nullable|integer|min:0',
         ]);
 
-        $question = DB::transaction(function () use ($data) {
-            $chapter = BookChapter::firstOrCreate(
-                ['book' => $data['book'], 'chapter_number' => $data['chapter']],
-                ['num_verses' => $data['num_verses'] ?? 0]
-            );
-
-            $question = $chapter->questions()->create([
-                'question_text' => $data['question_text'],
-            ]);
-
-            foreach ($data['options'] as $letter => $text) {
-                $question->answers()->create([
-                    'answer_text' => $text,
-                    'correct_answer' => $letter === $data['correct_option'],
-                ]);
-            }
-
-            return $question;
-        });
+        $question = DB::transaction(fn () => $this->createQuestion($data));
 
         return response($question->load(['chapter', 'answers']), 201);
+    }
+
+    /**
+     * Create many questions and their choices from one uploaded JSON file.
+     *
+     * POST /api/questions/bulk  (multipart/form-data, field: file)
+     *
+     * The file holds a JSON array of the same objects POST /questions accepts.
+     * Nothing is written unless every row passes validation.
+     */
+    public function bulkStore(Request $request)
+    {
+        $request->validate([
+            // `mimes` guesses from the file contents; a JSON file with no
+            // Content-Type is commonly sniffed as text/plain, hence txt.
+            'file' => 'required|file|mimes:json,txt|max:10240',
+        ]);
+
+        $questions = $this->decodeQuestionsFile($request->file('file')->get());
+
+        // Validate the whole array up front so a single bad row fails the
+        // request with its index and no rows are written.
+        $validator = Validator::make(['questions' => $questions], [
+            'questions' => 'required|array|min:1',
+            'questions.*.book' => 'required|string|max:100',
+            'questions.*.chapter' => 'required|integer|min:1',
+            'questions.*.question_text' => 'required|string',
+            'questions.*.options' => 'required|array',
+            'questions.*.options.a' => 'required|string',
+            'questions.*.options.b' => 'required|string',
+            'questions.*.options.c' => 'required|string',
+            'questions.*.options.d' => 'required|string',
+            'questions.*.correct_option' => 'required|in:a,b,c,d',
+            'questions.*.num_verses' => 'nullable|integer|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+        $created = DB::transaction(
+            fn () => collect($validator->validated()['questions'])
+                ->map(fn (array $data) => $this->createQuestion($data))
+        );
+
+        return response()->json([
+            'created' => $created->count(),
+            'question_ids' => $created->pluck('id')->all(),
+        ], 201);
+    }
+
+    /**
+     * Decode the uploaded file into a list of question arrays.
+     *
+     * @throws ValidationException
+     */
+    private function decodeQuestionsFile(string $contents): array
+    {
+        $decoded = json_decode($contents, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
+            throw ValidationException::withMessages([
+                'file' => 'The file must contain a JSON array of questions.',
+            ]);
+        }
+
+        if (! array_is_list($decoded)) {
+            throw ValidationException::withMessages([
+                'file' => 'The file must contain a JSON array of questions, not an object.',
+            ]);
+        }
+
+        if (empty($decoded)) {
+            throw ValidationException::withMessages([
+                'file' => 'The uploaded file contains no questions.',
+            ]);
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * Create one question with its chapter and four choices.
+     */
+    private function createQuestion(array $data): Question
+    {
+        $chapter = BookChapter::firstOrCreate(
+            ['book' => $data['book'], 'chapter_number' => $data['chapter']],
+            ['num_verses' => $data['num_verses'] ?? 0]
+        );
+
+        $question = $chapter->questions()->create([
+            'question_text' => $data['question_text'],
+        ]);
+
+        foreach ($data['options'] as $letter => $text) {
+            $question->answers()->create([
+                'answer_text' => $text,
+                'correct_answer' => $letter === $data['correct_option'],
+            ]);
+        }
+
+        return $question;
     }
 
     public function show(Question $question)

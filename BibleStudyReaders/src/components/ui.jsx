@@ -93,6 +93,19 @@ export function Skeleton({ className = "" }) {
   return <div className={`skeleton ${className}`} />;
 }
 
+export function ApiErrorMessage({ message, onRetry }) {
+  return (
+    <div className="data-error" role="alert">
+      <p className="data-error__message">{message}</p>
+      {onRetry && (
+        <button className="data-error__retry" onClick={onRetry}>
+          Retry
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function ErrorState({ message, onRetry }) {
   return (
     <div className="error-state">

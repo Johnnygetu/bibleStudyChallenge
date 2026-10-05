@@ -625,6 +625,34 @@ ol {
   background: var(--ink-800);
 }
 
+.btn-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--ink-100);
+  border: 1px solid rgba(229, 229, 229, 0.5);
+  border-radius: 0.75rem;
+  transition: background-color 0.15s;
+}
+
+.btn-secondary:hover {
+  background: var(--ink-800);
+}
+
+.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* ============================================================
    Forms
    ============================================================ */
@@ -702,6 +730,23 @@ ol {
 
 .form-error-icon {
   flex-shrink: 0;
+}
+
+/* Same shape as .form-error, for confirmations after a successful action. */
+.form-success {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(47, 158, 68, 0.12);
+  color: var(--success-600);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+}
+
+.form-success-text {
+  flex: 1;
 }
 
 .form-row {
@@ -1869,4 +1914,177 @@ img.avatar {
   font-size: 0.75rem;
   color: var(--ink-500);
   padding-top: 1rem;
+}
+
+/* ============================================================
+   Bulk question upload
+   ============================================================ */
+.bulk-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* .form-error keeps a bottom margin for the modal layout; inside a .stack the
+   sibling rule already spaces the panel, so this drops the doubling. */
+.form-error-flush {
+  margin-bottom: 0;
+}
+
+.bulk-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2.25rem 1rem;
+  background: var(--ink-800);
+  border: 1.5px dashed var(--ink-600);
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.bulk-drop:hover {
+  border-color: var(--primary-300);
+}
+
+.bulk-drop.is-dragging {
+  background: var(--primary-50);
+  border-color: var(--primary-400);
+}
+
+/* Keep drag events on the zone itself: a child under the cursor would
+   otherwise fire dragleave on the parent and flicker the highlight. */
+.bulk-drop > * {
+  pointer-events: none;
+}
+
+.bulk-drop-input {
+  display: none;
+}
+
+.bulk-drop-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  background: var(--ink-850);
+  color: var(--primary-500);
+  margin-bottom: 0.75rem;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.bulk-drop.is-dragging .bulk-drop-icon {
+  background: var(--primary-400);
+  color: var(--ink-950);
+}
+
+.bulk-drop-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink-200);
+}
+
+.bulk-drop-sub {
+  font-size: 0.75rem;
+  color: var(--ink-400);
+  margin-top: 0.125rem;
+}
+
+.bulk-file {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--ink-800);
+  border-radius: 0.75rem;
+}
+
+.bulk-file-icon {
+  flex-shrink: 0;
+  color: var(--primary-500);
+}
+
+.bulk-file-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.bulk-file-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-100);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bulk-file-meta {
+  font-size: 0.6875rem;
+  color: var(--ink-400);
+}
+
+.bulk-error {
+  background: rgba(224, 49, 49, 0.1);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+}
+
+.bulk-error-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--danger-600);
+}
+
+.bulk-error-list {
+  margin-top: 0.5rem;
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.bulk-error-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.375rem;
+  padding: 0.25rem 0;
+  font-size: 0.6875rem;
+  color: var(--danger-600);
+}
+
+.bulk-error-item + .bulk-error-item {
+  border-top: 1px solid rgba(224, 49, 49, 0.2);
+}
+
+.bulk-error-row {
+  font-weight: 700;
+}
+
+.bulk-error-field {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: rgba(224, 49, 49, 0.12);
+  border-radius: 0.25rem;
+  padding: 0 0.25rem;
+}
+
+.bulk-error-text {
+  flex: 1 1 100%;
+  color: var(--ink-300);
+}
+
+.bulk-note {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--ink-500);
+}
+
+/* Sits under the primary "Add Question" button in the add-question modal. */
+.btn-bulk {
+  margin-top: 0.75rem;
 }

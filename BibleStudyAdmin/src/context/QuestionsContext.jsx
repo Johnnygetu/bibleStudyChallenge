@@ -106,6 +106,33 @@ export function QuestionsProvider({ children }) {
     await reload();
   }, [reload]);
 
+  // Import many questions from a JSON file in one request. The server validates
+  // every row before writing any, so a failure means nothing was imported — the
+  // thrown error carries the per-row field errors so the page can list them.
+  const bulkUpload = useCallback(async (file) => {
+    const form = new FormData();
+    form.append('file', file);
+
+    const response = await fetch(`${apiUrl}/questions/bulk`, {
+      method: 'POST',
+      // No Content-Type header: the browser has to set the multipart boundary.
+      headers: { Accept: 'application/json' },
+      body: form,
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      const error = new Error(body?.message || `The server responded with ${response.status}.`);
+      error.status = response.status;
+      error.fieldErrors = body?.errors ?? null; // { file: [...], 'questions.3.correct_option': [...] }
+      throw error;
+    }
+
+    const result = await response.json(); // { created, question_ids }
+    await reload();
+    return result;
+  }, [reload]);
+
   // Delete one question. The id is exposed as `deletingId` so the row can
   // show a pending state until the server confirms and the list refetches.
   const deleteQuestion = useCallback(async (id) => {
@@ -127,7 +154,7 @@ export function QuestionsProvider({ children }) {
     }
   }, [reload, deletingId]);
 
-  const value = { questions, loading, error, deletingId, reload, addQuestion, updateQuestion, deleteQuestion };
+  const value = { questions, loading, error, deletingId, reload, addQuestion, updateQuestion, deleteQuestion, bulkUpload };
 
   return <QuestionsContext.Provider value={value}>{children}</QuestionsContext.Provider>;
 }
