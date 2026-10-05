@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-import { apiUrl } from '@/context/AppProviders';
+import { apiUrl } from '@/context/apiUrl';
 
 const LETTERS = ['a', 'b', 'c', 'd'];
 
@@ -25,6 +25,22 @@ function toQuestion(row) {
   });
 
   return mapped;
+}
+
+// Laravel reports validation failures as {"errors": {"0.field": ["why"]}}, where
+// the leading number is the row's index in the array that was sent. Flatten that
+// into the row/field/text triples the bulk upload page renders, and number the
+// rows from 1 so they line up with what the admin sees in their file. A row that
+// is not an array at all fails the root rule, so its key is a bare index with no
+// field — that still names a row, just no particular column in it.
+function toErrorItems(errors) {
+  return Object.entries(errors ?? {}).flatMap(([key, messages]) => {
+    const match = key.match(/^(\d+)(?:\.(.+))?$/);
+    const row = match ? Number(match[1]) + 1 : null;
+    const field = match ? match[2] ?? null : key;
+
+    return (Array.isArray(messages) ? messages : [messages]).map((text) => ({ row, field, text }));
+  });
 }
 
 // Owns everything about the question list: the fetch, its loading/error
@@ -89,10 +105,17 @@ export function QuestionsProvider({ children }) {
       },
       body: payload,
     });
+
+    const body = await response.json().catch(() => null);
+
     if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      throw new Error(body?.message || `The server responded with ${response.status}.`);
+      const error = new Error(body?.message || `The server responded with ${response.status}.`);
+      error.status = response.status;
+      error.items = toErrorItems(body?.errors);
+      throw error;
     }
+
+    return body;
   }
 
   // Create a question with its four choices. Throws so the form can show why.
@@ -106,75 +129,41 @@ export function QuestionsProvider({ children }) {
     await reload();
   }, [reload]);
 
-  // Import many questions from a JSON file in one request. The server validates
-  // every row before writing any, so a failure means nothing was imported — the
-  // thrown error carries the per-row field errors so the page can list them.
+  // Import many questions from a file the admin picked. The file is read and
+  // parsed here rather than in the page, so the whole import — read, parse,
+  // send, refresh — is one call. Throws so the page can show what went wrong;
+  // a rejected file carries `items` for the per-row list.
   const bulkUpload = useCallback(async (file) => {
-    const url = `${apiUrl}/questions/bulk`;
-    const form = new FormData();
-    form.append('file', file);
-
-    let response;
+    let rows;
     try {
-      response = await fetch(url, {
-        method: 'POST',
-        // No Content-Type header: the browser has to set the multipart boundary.
-        headers: { Accept: 'application/json' },
-        body: form,
-      });
-    } catch (cause) {
-      // The request never reached the server — offline, DNS, CORS, or a
-      // refused connection. Keep the original error so the console shows
-      // which of those it was; `fetch` only says "Failed to fetch".
-      const error = new Error(`Could not reach ${url}. Check your connection and try again.`);
-      error.cause = cause;
-      error.url = url;
-      error.networkFailure = true;
-      throw error;
+      rows = JSON.parse(await file.text());
+    } catch (err) {
+      console.error(`Bulk upload: could not parse ${file.name} as JSON:`, err);
+      throw new Error(`We could not read ${file.name} as JSON. Check the file and try again.`);
     }
 
-    // Read the body as text first, then parse it. A failing request can answer
-    // with an HTML error page — a proxy, a PHP fatal, a WAF — and calling
-    // .json() straight on that throws, discarding the only clue about what
-    // actually happened. The text is kept either way.
-    const rawBody = await response.text().catch(() => '');
-    const contentType = response.headers.get('content-type') ?? '';
-
-    let body = null;
-    let parseError = null;
-    try {
-      body = rawBody ? JSON.parse(rawBody) : null;
-    } catch (cause) {
-      parseError = cause; // Not JSON. rawBody still carries it to the console.
+    // The server can't express this rule: the body is a bare array, so there is
+    // no key to hang a "min:1" on and an empty array would come back as a
+    // successful import of nothing.
+    if (!Array.isArray(rows) || rows.length === 0) {
+      const shape = Array.isArray(rows) ? 'an empty array' : `a ${typeof rows}`;
+      console.warn(`Bulk upload: rejected ${file.name} — it parsed as ${shape}, not a non-empty array.`);
+      throw new Error('The file must hold a JSON array of questions, like the example file.');
     }
 
-    if (!response.ok) {
-      const error = new Error(body?.message || `The server responded with ${response.status}.`);
-      error.status = response.status;
-      error.statusText = response.statusText;
-      error.url = url;
-      error.contentType = contentType;
-      error.rawBody = rawBody;
-      error.body = body;
-      error.cause = parseError;
-      error.fieldErrors = body?.errors ?? null; // { file: [...], 'questions.3.correct_option': [...] }
-      throw error;
-    }
+    const result = await request(`${apiUrl}/questions/bulk`, 'POST', JSON.stringify(rows));
 
-    if (!body) {
-      // The rows were written, but we cannot tell the page how many.
-      const error = new Error('The upload succeeded but the server sent back a reply that is not JSON.');
-      error.status = response.status;
-      error.url = url;
-      error.contentType = contentType;
-      error.rawBody = rawBody;
-      error.cause = parseError;
-      error.writtenButUnconfirmed = true;
-      throw error;
+    // A success whose body we could not read means the server wrote something
+    // ahead of the JSON. The writes may well have committed, so say so rather
+    // than failing silently or inviting a retry that imports everything twice.
+    if (!result) {
+      throw new Error(
+        'The server took the import but its reply could not be read, so we cannot confirm what was saved. Reload the question list before uploading again.'
+      );
     }
 
     await reload();
-    return body;
+    return result;
   }, [reload]);
 
   // Delete one question. The id is exposed as `deletingId` so the row can
@@ -198,7 +187,7 @@ export function QuestionsProvider({ children }) {
     }
   }, [reload, deletingId]);
 
-  const value = { questions, loading, error, deletingId, reload, addQuestion, updateQuestion, deleteQuestion, bulkUpload };
+  const value = { questions, loading, error, deletingId, reload, addQuestion, updateQuestion, bulkUpload, deleteQuestion };
 
   return <QuestionsContext.Provider value={value}>{children}</QuestionsContext.Provider>;
 }

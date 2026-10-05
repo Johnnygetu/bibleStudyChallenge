@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-import { apiUrl } from '@/context/AppProviders';
+import { apiUrl } from '@/context/apiUrl';
 
 // The admin UI was built around the Reader shape of the old dummy data.
 // Map the server's readers rows onto it so the pages stay unchanged.

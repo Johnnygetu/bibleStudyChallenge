@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-import { apiUrl } from '@/context/AppProviders';
+import { apiUrl } from '@/context/apiUrl';
 
 // Owns the leaderboard: personal rankings (sum of the reader's scores)
 // and group rankings (sum of each group's members' scores), fetched from

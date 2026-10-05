@@ -507,16 +507,21 @@
   cursor: default;
 }
 
+/* The marked answers after the quiz is handed in. Both use the -500 step of
+   their ramp, the same one the rest of the app uses for success and error text
+   (the tint and border are built from that same colour), rather than the palest
+   step, which washed out against the option's own background. */
+
 .quiz-option--correct {
   background-color: rgba(47, 158, 68, 0.2);
   border-color: rgba(47, 158, 68, 0.5);
-  color: var(--success-300);
+  color: var(--success-500);
 }
 
 .quiz-option--wrong {
-  background-color: rgba(232, 89, 12, 0.2);
-  border-color: rgba(232, 89, 12, 0.5);
-  color: var(--ember-300);
+  background-color: rgba(224, 49, 49, 0.2);
+  border-color: rgba(224, 49, 49, 0.5);
+  color: var(--danger-500);
 }
 
 .quiz-option--selected {

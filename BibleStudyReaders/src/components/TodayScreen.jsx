@@ -42,7 +42,7 @@ export function TodayScreen() {
     isSubmittingQuiz,
     quizResult,
     quizSubmitError,
-    quizSubmitted,
+    quizOver,
     allQuizAnswered,
     canSubmitQuiz,
     submitLabel,
@@ -211,12 +211,14 @@ export function TodayScreen() {
       </div>
 
       {/* Today's Quiz Section */}
-      {quizSubmitted ? (
+      {quizOver ? (
         <div className="card quiz-empty">
           <Check className="quiz-empty__icon quiz-empty__icon--done" />
           <p className="quiz-empty__text">You have completed today's quiz.</p>
-          {/* The quiz disappears the moment it is handed in, so the score the
-              submission just produced is reported here instead. */}
+          {/* The quiz is dropped the moment it is over, so the score the
+              submission just produced is reported here instead. A visit later
+              the same day has no score in hand — the server reports only
+              whether the day's quiz is done — so it gets the plain line. */}
           <p className="quiz-empty__hint">
             {quizResult
               ? `You scored ${quizResult.score} of ${quizResult.answered} — saved to today's leaderboard.`
@@ -268,7 +270,7 @@ export function TodayScreen() {
                     {question.answers.map((answer) => (
                       <button
                         key={answer.id}
-                        disabled={question.hasSelection}
+                        disabled={isSubmittingQuiz}
                         onClick={() => answerQuestion(question.id, answer.id)}
                         className={[
                           "quiz-option",
@@ -296,14 +298,9 @@ export function TodayScreen() {
               >
                 {submitLabel}
               </button>
-              {quizResult && !canSubmitQuiz ? (
-                <p className="quiz-card__result">
-                  You scored {quizResult.score} of {quizResult.answered} — saved to today's
-                  leaderboard.
-                </p>
-              ) : !allQuizAnswered ? (
+              {!allQuizAnswered && (
                 <p className="quiz-card__hint">Answer every question to submit.</p>
-              ) : null}
+              )}
             </>
           )}
           {quizSubmitError && <p className="quiz-card__error">{quizSubmitError}</p>}

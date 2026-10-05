@@ -22,7 +22,7 @@ const BIBLE_BOOKS = {
 };
 
 export default function Quizzes() {
-  const { questions, loading, error, deletingId, reload, deleteQuestion } = useQuestionsContext();
+  const { questions, loading, error, deletingId, reload, bulkUpload, deleteQuestion } = useQuestionsContext();
   const [view, setView] = useState('list');
   const [notice, setNotice] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -36,8 +36,11 @@ export default function Quizzes() {
     return (
       <BulkUpload
         onBack={() => setView('list')}
-        onImported={(count) => {
-          setNotice(`Imported ${count} question${count === 1 ? '' : 's'}.`);
+        // Errors are left to propagate: the page catches them and renders the
+        // panel, whether it is one message or a list of per-row problems.
+        onImport={async (file) => {
+          const result = await bulkUpload(file);
+          setNotice(`Imported ${result.created} question${result.created === 1 ? '' : 's'}.`);
           setView('list');
         }}
       />

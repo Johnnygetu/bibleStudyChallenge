@@ -1,0 +1,321 @@
+[
+  {
+    "book_chapter_id": 1,
+    "question_text": "What did God create on the first day of creation?",
+    "options": {
+      "a": "Light",
+      "b": "The sun",
+      "c": "The animals",
+      "d": "The dry land"
+    },
+    "correct_option": "a"
+  },
+  {
+    "book_chapter_id": 2,
+    "question_text": "What did God do after creating the man?",
+    "options": {
+      "a": "He sent him to Egypt",
+      "b": "He placed him in the Garden of Eden",
+      "c": "He made him king",
+      "d": "He placed him on Mount Sinai"
+    },
+    "correct_option": "b"
+  },
+  {
+    "book_chapter_id": 4,
+    "question_text": "Why did Cain become angry with Abel?",
+    "options": {
+      "a": "Abel took his land",
+      "b": "Abel left home",
+      "c": "God accepted Abel's offering but not Cain's",
+      "d": "Abel refused to work"
+    },
+    "correct_option": "c"
+  },
+  {
+    "book_chapter_id": 6,
+    "question_text": "Who found favor in the eyes of the LORD before the flood?",
+    "options": {
+      "a": "Abraham",
+      "b": "Isaac",
+      "c": "Lot",
+      "d": "Noah"
+    },
+    "correct_option": "d"
+  },
+  {
+    "book_chapter_id": 8,
+    "question_text": "What did Noah do after the floodwaters receded and the ark rested?",
+    "options": {
+      "a": "Built a tower",
+      "b": "Built an altar to the LORD",
+      "c": "Returned to Egypt",
+      "d": "Built a palace"
+    },
+    "correct_option": "b"
+  },
+  {
+    "book_chapter_id": 9,
+    "question_text": "What sign did God give as a reminder of His covenant with Noah?",
+    "options": {
+      "a": "A star",
+      "b": "A pillar of fire",
+      "c": "A rainbow",
+      "d": "A cloud of smoke"
+    },
+    "correct_option": "c"
+  },
+  {
+    "book_chapter_id": 11,
+    "question_text": "Why did the people build the tower of Babel?",
+    "options": {
+      "a": "To protect the ark",
+      "b": "To worship Noah",
+      "c": "To find water",
+      "d": "To make a name for themselves"
+    },
+    "correct_option": "d"
+  },
+  {
+    "book_chapter_id": 12,
+    "question_text": "What did Abram do when the LORD told him to leave his country?",
+    "options": {
+      "a": "He went as the LORD had told him",
+      "b": "He refused",
+      "c": "He returned to Ur",
+      "d": "He stayed in Egypt"
+    },
+    "correct_option": "a"
+  },
+  {
+    "book_chapter_id": 15,
+    "question_text": "What did God promise Abram concerning his descendants?",
+    "options": {
+      "a": "They would never leave Canaan",
+      "b": "They would all live in Egypt",
+      "c": "They would be as numerous as the stars",
+      "d": "They would become angels"
+    },
+    "correct_option": "c"
+  },
+  {
+    "book_chapter_id": 16,
+    "question_text": "What was the name of Hagar's son?",
+    "options": {
+      "a": "Jacob",
+      "b": "Isaac",
+      "c": "Esau",
+      "d": "Ishmael"
+    },
+    "correct_option": "d"
+  },
+  {
+    "book_chapter_id": 18,
+    "question_text": "What did Abraham ask God about Sodom?",
+    "options": {
+      "a": "Whether the righteous would be destroyed with the wicked",
+      "b": "Whether Lot should become king",
+      "c": "Whether the city had enough food",
+      "d": "Whether Pharaoh would attack"
+    },
+    "correct_option": "a"
+  },
+  {
+    "book_chapter_id": 19,
+    "question_text": "What happened to Lot's wife when she looked back?",
+    "options": {
+      "a": "She became blind",
+      "b": "She became a pillar of salt",
+      "c": "She became a priest",
+      "d": "She disappeared"
+    },
+    "correct_option": "b"
+  },
+  {
+    "book_chapter_id": 22,
+    "question_text": "What did God ask Abraham to do with Isaac?",
+    "options": {
+      "a": "Hide him in Canaan",
+      "b": "Send him to Egypt",
+      "c": "Make him a king",
+      "d": "Offer him as a burnt offering"
+    },
+    "correct_option": "d"
+  },
+  {
+    "book_chapter_id": 24,
+    "question_text": "What did Rebekah do when Abraham's servant asked for water?",
+    "options": {
+      "a": "She gave him water and watered his camels",
+      "b": "She refused him",
+      "c": "She called Isaac",
+      "d": "She took him to Egypt"
+    },
+    "correct_option": "a"
+  },
+  {
+    "book_chapter_id": 25,
+    "question_text": "What did Esau sell to Jacob?",
+    "options": {
+      "a": "His house",
+      "b": "His birthright",
+      "c": "His flock",
+      "d": "His inheritance in Canaan"
+    },
+    "correct_option": "b"
+  },
+  {
+    "book_chapter_id": 28,
+    "question_text": "What did Jacob name the place where he dreamed of the ladder?",
+    "options": {
+      "a": "Beersheba",
+      "b": "Hebron",
+      "c": "Bethel",
+      "d": "Shechem"
+    },
+    "correct_option": "c"
+  },
+  {
+    "book_chapter_id": 29,
+    "question_text": "Who was Jacob's first wife?",
+    "options": {
+      "a": "Leah",
+      "b": "Rachel",
+      "c": "Rebekah",
+      "d": "Bilhah"
+    },
+    "correct_option": "a"
+  },
+  {
+    "book_chapter_id": 31,
+    "question_text": "What did Jacob do when Laban changed his wages many times?",
+    "options": {
+      "a": "He returned to Egypt",
+      "b": "He continued to work and trusted God",
+      "c": "He attacked Laban",
+      "d": "He abandoned his family"
+    },
+    "correct_option": "b"
+  },
+  {
+    "book_chapter_id": 32,
+    "question_text": "What did Jacob call the place where he wrestled with God?",
+    "options": {
+      "a": "Hebron",
+      "b": "Bethel",
+      "c": "Peniel",
+      "d": "Shechem"
+    },
+    "correct_option": "c"
+  },
+  {
+    "book_chapter_id": 34,
+    "question_text": "What happened to Dinah after she went out to see the women of the land?",
+    "options": {
+      "a": "She married Joseph",
+      "b": "She became a queen",
+      "c": "She went to Egypt",
+      "d": "She was taken by Shechem"
+    },
+    "correct_option": "d"
+  },
+  {
+    "book_chapter_id": 37,
+    "question_text": "What did Joseph's brothers do when they saw him coming?",
+    "options": {
+      "a": "They welcomed him",
+      "b": "They plotted to kill him",
+      "c": "They took him to Jacob",
+      "d": "They gave him a new coat"
+    },
+    "correct_option": "b"
+  },
+  {
+    "book_chapter_id": 41,
+    "question_text": "What did Joseph interpret Pharaoh's dreams to mean?",
+    "options": {
+      "a": "Seven kings would rule Egypt",
+      "b": "Seven years of war",
+      "c": "Seven years of plenty followed by seven years of famine",
+      "d": "Egypt would leave Canaan"
+    },
+    "correct_option": "c"
+  },
+  {
+    "book_chapter_id": 42,
+    "question_text": "What did Joseph require before his brothers could return with more grain?",
+    "options": {
+      "a": "They had to become Egyptians",
+      "b": "They had to bring Jacob",
+      "c": "They had to leave Simeon forever",
+      "d": "They had to bring their youngest brother"
+    },
+    "correct_option": "d"
+  },
+  {
+    "book_chapter_id": 42,
+    "question_text": "What did Joseph's brothers discover when they opened their sacks on the journey home?",
+    "options": {
+      "a": "Each man's money was in his sack",
+      "b": "Joseph was alive",
+      "c": "Benjamin was missing",
+      "d": "Pharaoh had followed them"
+    },
+    "correct_option": "a"
+  },
+  {
+    "book_chapter_id": 43,
+    "question_text": "Why did Joseph's brothers go to Egypt?",
+    "options": {
+      "a": "To find Moses",
+      "b": "To fight Pharaoh",
+      "c": "To buy food because of the famine",
+      "d": "To move there permanently"
+    },
+    "correct_option": "c"
+  },
+  {
+    "book_chapter_id": 44,
+    "question_text": "What did Judah offer to do for Benjamin?",
+    "options": {
+      "a": "Leave him alone",
+      "b": "Take him to Egypt",
+      "c": "Sell him",
+      "d": "Become a slave in Benjamin's place"
+    },
+    "correct_option": "d"
+  },
+  {
+    "book_chapter_id": 45,
+    "question_text": "What did Joseph tell his brothers about God's purpose in what happened to him?",
+    "options": {
+      "a": "God sent him ahead to preserve a remnant",
+      "b": "God had abandoned them",
+      "c": "Joseph had escaped by his own power",
+      "d": "Pharaoh had planned everything"
+    },
+    "correct_option": "a"
+  },
+  {
+    "book_chapter_id": 46,
+    "question_text": "What did Jacob do after Joseph told him that he was alive and in Egypt?",
+    "options": {
+      "a": "He refused to go",
+      "b": "He went to see Joseph and was satisfied to see him alive",
+      "c": "He returned to Haran",
+      "d": "He moved to Moab"
+    },
+    "correct_option": "b"
+  },
+  {
+    "book_chapter_id": 50,
+    "question_text": "What did Joseph make the Israelites promise to do with his bones?",
+    "options": {
+      "a": "Give them to the Egyptians",
+      "b": "Bury them in Egypt",
+      "c": "Leave them in Pharaoh's palace",
+      "d": "Carry them out of Egypt"
+    },
+    "correct_option": "d"
+  }
+]

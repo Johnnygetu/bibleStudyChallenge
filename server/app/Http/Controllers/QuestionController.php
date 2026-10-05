@@ -6,8 +6,6 @@ use App\Models\BookChapter;
 use App\Models\Question;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 
 class QuestionController extends Controller
 {
@@ -37,83 +35,46 @@ class QuestionController extends Controller
     }
 
     /**
-     * Create many questions and their choices from one uploaded JSON file.
+     * Create many questions and their choices from one request body.
      *
-     * POST /api/questions/bulk  (multipart/form-data, field: file)
+     * POST /api/questions/bulk  (application/json, body: an array of rows)
      *
-     * The file holds a JSON array of questions. Every row names the chapter it
-     * belongs to with `book_chapter_id`, which must already exist — the bulk
-     * import never creates chapters. Nothing is written unless every row
-     * passes validation.
+     * The body is a JSON array of question rows, in the same shape the single
+     * create takes. Every row names its chapter with `book_chapter_id`, which
+     * must already exist — this never creates a chapter, so a wrong id is a
+     * rejection rather than a new book nobody meant to add.
      *
-     * Kept as one self-contained function on purpose: reading the file,
-     * validating it, and writing it are all one operation, and the whole of it
-     * is easier to follow in one place than spread over helpers.
+     * The whole array is validated before any row is written, and the writes
+     * run in one transaction, so a bad row means nothing is imported instead
+     * of a half-imported file the admin has to clean up by hand.
      */
     public function bulkStore(Request $request)
     {
-        $request->validate([
-            // `mimes` guesses from the file contents; a JSON file with no
-            // Content-Type is commonly sniffed as text/plain, hence txt.
-            'file' => 'required|file|mimes:json,txt|max:10240',
+        $rows = $request->validate([
+            '*' => 'required|array',
+            '*.book_chapter_id' => 'required|integer|exists:book_chapters,id',
+            '*.question_text' => 'required|string',
+            '*.options' => 'required|array',
+            '*.options.a' => 'required|string',
+            '*.options.b' => 'required|string',
+            '*.options.c' => 'required|string',
+            '*.options.d' => 'required|string',
+            '*.correct_option' => 'required|in:a,b,c,d',
         ]);
 
-        $questions = json_decode($request->file('file')->get(), true);
-
-        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($questions)) {
-            throw ValidationException::withMessages([
-                'file' => 'The file must contain a JSON array of questions.',
-            ]);
-        }
-
-        if (! array_is_list($questions)) {
-            throw ValidationException::withMessages([
-                'file' => 'The file must contain a JSON array of questions, not an object.',
-            ]);
-        }
-
-        if (empty($questions)) {
-            throw ValidationException::withMessages([
-                'file' => 'The uploaded file contains no questions.',
-            ]);
-        }
-
-        // Validate the whole array up front so a single bad row fails the
-        // request with its index and no rows are written. `exists` is what
-        // keeps the import from pointing questions at a chapter that isn't
-        // there.
-        $validator = Validator::make(['questions' => $questions], [
-            'questions' => 'required|array|min:1',
-            'questions.*' => 'required|array',
-            'questions.*.book_chapter_id' => 'required|integer|exists:book_chapters,id',
-            'questions.*.question_text' => 'required|string',
-            'questions.*.options' => 'required|array',
-            'questions.*.options.a' => 'required|string',
-            'questions.*.options.b' => 'required|string',
-            'questions.*.options.c' => 'required|string',
-            'questions.*.options.d' => 'required|string',
-            'questions.*.correct_option' => 'required|in:a,b,c,d',
-        ]);
-
-        if ($validator->fails()) {
-            throw new ValidationException($validator);
-        }
-
-        $questionIds = DB::transaction(function () use ($validator) {
+        $questionIds = DB::transaction(function () use ($rows) {
             $ids = [];
 
-            foreach ($validator->validated()['questions'] as $data) {
+            foreach ($rows as $row) {
                 $question = Question::create([
-                    'chapter_id' => $data['book_chapter_id'],
-                    'question_text' => $data['question_text'],
+                    'chapter_id' => $row['book_chapter_id'],
+                    'question_text' => $row['question_text'],
                 ]);
 
-                // The four validated letters only, so a stray "e" in the file
-                // cannot add a fifth choice.
                 foreach (['a', 'b', 'c', 'd'] as $letter) {
                     $question->answers()->create([
-                        'answer_text' => $data['options'][$letter],
-                        'correct_answer' => $letter === $data['correct_option'],
+                        'answer_text' => $row['options'][$letter],
+                        'correct_answer' => $letter === $row['correct_option'],
                     ]);
                 }
 

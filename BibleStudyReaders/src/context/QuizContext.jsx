@@ -29,13 +29,16 @@ export function QuizProvider({ children }) {
   const [quizSubmitError, setQuizSubmitError] = useState(null);
   const [questionsToken, setQuestionsToken] = useState(0);
 
-  // Today's quiz is over once it has been handed in — in this session or on an
-  // earlier visit. There is nothing left to fetch or answer, so the screen
-  // drops the whole quiz in favour of a confirmation.
-  const quizSubmitted = quizDoneToday || !!quizResult;
+  // Today's quiz is over once the whole quiz has been handed in — in this
+  // session or on an earlier visit. There is nothing left to answer, so the
+  // screen shows the score in place of the questions. An early submission, made
+  // before today's reading was finished, does not end it: finishing the reading
+  // unlocks the rest of the questions and the reader carries on.
+  const quizComplete = !!quizResult?.complete;
+  const quizOver = quizDoneToday || quizComplete;
 
   useEffect(() => {
-    if (!chapterKey || quizSubmitted) {
+    if (!chapterKey || quizOver) {
       setQuizQuestions([]);
       setHasQuestions(false);
       setQuestionError(null);
@@ -72,7 +75,7 @@ export function QuizProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [apiUrl, buildUrl, chapterKey, questionsToken, quizSubmitted, reloadToken]);
+  }, [apiUrl, buildUrl, chapterKey, questionsToken, quizOver, reloadToken]);
 
   const reloadQuestions = useCallback(() => setQuestionsToken((token) => token + 1), []);
 
@@ -84,19 +87,19 @@ export function QuizProvider({ children }) {
       const selectedAnswerId = quizAnswers[question.id];
       return {
         ...question,
-        hasSelection: !!selectedAnswerId,
         answers: (question.answers || []).map((answer) => ({
           id: answer.id,
           answer_text: answer.answer_text,
           isSelected: selectedAnswerId === answer.id,
-          // The right answer is revealed as soon as one is picked, and a wrong
-          // pick is flagged alongside it.
-          showCorrect: !!selectedAnswerId && !!answer.correct_answer,
-          showWrong: !!selectedAnswerId && selectedAnswerId === answer.id && !answer.correct_answer,
+          // Only ever true for the questions still on screen, which is never a
+          // handed-in quiz — the mark stays off so a pick can't give itself away
+          // before the reader has decided to submit.
+          showCorrect: quizComplete && !!answer.correct_answer,
+          showWrong: quizComplete && selectedAnswerId === answer.id && !answer.correct_answer,
         })),
       };
     });
-  }, [allDone, quizAnswers, quizQuestions]);
+  }, [allDone, quizAnswers, quizQuestions, quizComplete]);
 
   const allQuizAnswered =
     visibleQuizQuestions.length > 0 && visibleQuizQuestions.every((q) => quizAnswers[q.id]);
@@ -109,16 +112,16 @@ export function QuizProvider({ children }) {
       ? "Submitted"
       : "Submit quiz";
 
+  // Choosing an answer only records it. No verdict comes back — from the screen
+  // or from the phone — until the quiz is handed in, and until then the reader
+  // is free to change their mind.
   const answerQuestion = useCallback(
     (questionId, answerId) => {
-      if (quizAnswers[questionId]) return;
+      if (quizComplete || isSubmittingQuiz) return;
       hapticImpact("medium");
-      const question = quizQuestions.find((item) => item.id === questionId);
-      const selectedAnswer = question?.answers?.find((answer) => answer.id === answerId);
       setQuizAnswers((prev) => ({ ...prev, [questionId]: answerId }));
-      hapticNotification(selectedAnswer?.correct_answer ? "success" : "error");
     },
-    [quizAnswers, quizQuestions]
+    [isSubmittingQuiz, quizComplete]
   );
 
   // Post today's answers; the server computes the score and stores one row per
@@ -135,7 +138,10 @@ export function QuizProvider({ children }) {
     setQuizSubmitError(null);
     try {
       hapticImpact("medium");
-      const res = await fetch(`${apiUrl}/readers/${user.id}/scores`, {
+      // buildUrl matters here: under a processing-date override the score has
+      // to land on the same simulated day the reading pages are asking about,
+      // or `has_submitted_quiz_today` never sees it and the quiz comes back.
+      const res = await fetch(buildUrl(`${apiUrl}/readers/${user.id}/scores`), {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ answers: payload }),
@@ -144,7 +150,9 @@ export function QuizProvider({ children }) {
 
       const data = await res.json();
       hapticNotification("success");
-      setQuizResult({ score: data.score, answered: data.answered });
+      // `complete` records whether the whole quiz was open when it went in, and
+      // is what decides if the answers may be shown back.
+      setQuizResult({ score: data.score, answered: data.answered, complete: allDone });
       reloadLeaderboard();
     } catch (err) {
       console.error("Failed to submit quiz", err);
@@ -153,7 +161,7 @@ export function QuizProvider({ children }) {
     } finally {
       setIsSubmittingQuiz(false);
     }
-  }, [apiUrl, canSubmitQuiz, isSubmittingQuiz, quizAnswers, reloadLeaderboard, user, visibleQuizQuestions]);
+  }, [allDone, apiUrl, buildUrl, canSubmitQuiz, isSubmittingQuiz, quizAnswers, reloadLeaderboard, user, visibleQuizQuestions]);
 
   const value = {
     quizLoading,
@@ -163,7 +171,7 @@ export function QuizProvider({ children }) {
     isSubmittingQuiz,
     quizResult,
     quizSubmitError,
-    quizSubmitted,
+    quizOver,
     allQuizAnswered,
     canSubmitQuiz,
     submitLabel,
