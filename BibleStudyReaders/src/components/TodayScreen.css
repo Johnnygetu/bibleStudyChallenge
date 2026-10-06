@@ -209,6 +209,47 @@
   height: 0.875rem;
 }
 
+/* Stands in for the checklist once the day's reading has been saved */
+
+.reading-card__complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1.5rem 0 0.5rem;
+}
+
+.reading-card__complete-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  background: rgba(47, 158, 68, 0.15);
+  color: var(--success-500);
+  margin-bottom: 0.75rem;
+}
+
+.reading-card__complete-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.reading-card__complete-text {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--success-500);
+}
+
+.reading-card__complete-hint {
+  font-size: 0.75rem;
+  color: var(--ink-400);
+  margin-top: 0.375rem;
+  line-height: 1.45;
+}
+
 .reading-card__save {
   width: 100%;
   margin-top: 1.25rem;
@@ -293,6 +334,38 @@
 .chapter-toggle--done {
   background-color: rgba(2, 41, 66, 0.1);
   border: 1px solid rgba(2, 41, 66, 0.3);
+}
+
+.chapter-toggle--locked {
+  background-color: transparent;
+  border: 1px dashed rgba(229, 229, 229, 0.5);
+  cursor: not-allowed;
+}
+
+.chapter-toggle--locked .chapter-toggle__label {
+  color: var(--ink-600);
+}
+
+.chapter-toggle--locked:active {
+  transform: none;
+}
+
+/* A chapter the server already has stored: still ticked, but no longer
+   changeable, so it settles instead of pressing. */
+
+.chapter-toggle--saved {
+  cursor: default;
+}
+
+.chapter-toggle--saved:active {
+  transform: none;
+}
+
+.chapter-toggle__lock {
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-left: auto;
+  color: var(--ink-600);
 }
 
 .chapter-toggle__check {
@@ -434,16 +507,21 @@
   cursor: default;
 }
 
+/* The marked answers after the quiz is handed in. Both use the -500 step of
+   their ramp, the same one the rest of the app uses for success and error text
+   (the tint and border are built from that same colour), rather than the palest
+   step, which washed out against the option's own background. */
+
 .quiz-option--correct {
   background-color: rgba(47, 158, 68, 0.2);
   border-color: rgba(47, 158, 68, 0.5);
-  color: var(--success-300);
+  color: var(--success-500);
 }
 
 .quiz-option--wrong {
-  background-color: rgba(232, 89, 12, 0.2);
-  border-color: rgba(232, 89, 12, 0.5);
-  color: var(--ember-300);
+  background-color: rgba(224, 49, 49, 0.2);
+  border-color: rgba(224, 49, 49, 0.5);
+  color: var(--danger-500);
 }
 
 .quiz-option--selected {
@@ -480,6 +558,12 @@
   height: 2rem;
   color: var(--ink-500);
   opacity: 0.6;
+}
+
+/* Stands in for the quiz once today's has been handed in. */
+.quiz-empty__icon--done {
+  color: var(--success-500);
+  opacity: 1;
 }
 
 .quiz-empty__text {

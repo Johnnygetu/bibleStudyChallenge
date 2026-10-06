@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { dummyReaders } from '@/lib/dummy';
 
-import { apiUrl } from '@/context/AppProviders';
+import { apiUrl } from '@/context/apiUrl';
 
 // Owns the dashboard's data. Totals and recent readers come from the
 // server; the consistency stats (streak / on track / falling behind)

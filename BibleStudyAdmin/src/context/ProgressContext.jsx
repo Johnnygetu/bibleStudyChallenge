@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-import { apiUrl } from '@/context/AppProviders';
+import { apiUrl } from '@/context/apiUrl';
 
 // Owns the reading-progress data: per-reader days done/missed and streaks,
 // computed on the server from the reading plan's schedule (lag logic) and

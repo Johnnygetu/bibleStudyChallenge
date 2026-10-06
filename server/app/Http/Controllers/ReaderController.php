@@ -172,6 +172,13 @@ class ReaderController extends Controller
         $currentStreak = $latestStreak?->count ?? 0;
         $bestStreak = $reader->streaks()->max('count') ?? 0;
 
+        // Whether today's quiz has already been handed in. The reader app hides
+        // the quiz once it has, so it needs the answer on load rather than only
+        // in the session that submitted.
+        $hasSubmittedQuizToday = Score::where('reader_id', $reader->id)
+            ->whereDate('created_at', today())
+            ->exists();
+
         return response([
             'reader_id' => $reader->id,
             'plan_id' => $plan->id,
@@ -188,6 +195,7 @@ class ReaderController extends Controller
             'has_started' => $daysUntilStart === 0,
             'current_streak' => $currentStreak,
             'best_streak' => max($currentStreak, $bestStreak),
+            'has_submitted_quiz_today' => $hasSubmittedQuizToday,
             'readings' => $readings,
         ]);
     }

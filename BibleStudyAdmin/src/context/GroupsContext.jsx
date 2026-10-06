@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-import { apiUrl } from '@/context/AppProviders';
+import { apiUrl } from '@/context/apiUrl';
 
 // Owns everything about the groups list: the fetch, its loading/error
 // states, and the create/delete mutations the Groups page performs.

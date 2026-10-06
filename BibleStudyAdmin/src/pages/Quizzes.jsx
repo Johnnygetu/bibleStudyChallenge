@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Plus, X, Edit2, HelpCircle, ChevronDown, ChevronRight, Trash2, BookOpen, Check, AlertCircle } from 'lucide-react';
+import { Plus, X, Edit2, HelpCircle, ChevronDown, ChevronRight, Trash2, BookOpen, Check, AlertCircle, CheckCircle2, Upload } from 'lucide-react';
 import { ErrorState } from '@/components/ui';
+import BulkUpload from '@/pages/BulkUpload.jsx';
 import { useQuestionsContext } from '@/context/QuestionsContext';
 
 const BIBLE_BOOKS = {
@@ -21,11 +22,30 @@ const BIBLE_BOOKS = {
 };
 
 export default function Quizzes() {
-  const { questions, loading, error, deletingId, reload, deleteQuestion } = useQuestionsContext();
+  const { questions, loading, error, deletingId, reload, bulkUpload, deleteQuestion } = useQuestionsContext();
+  const [view, setView] = useState('list');
+  const [notice, setNotice] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [expandedBook, setExpandedBook] = useState(null);
   const [expandedChapter, setExpandedChapter] = useState(null);
   const [editing, setEditing] = useState(null);
+
+  // The bulk import is a second view of this page rather than another bottom-nav
+  // tab, so the shell and the highlighted "Quizzes" tab stay put while it's open.
+  if (view === 'bulk') {
+    return (
+      <BulkUpload
+        onBack={() => setView('list')}
+        // Errors are left to propagate: the page catches them and renders the
+        // panel, whether it is one message or a list of per-row problems.
+        onImport={async (file) => {
+          const result = await bulkUpload(file);
+          setNotice(`Imported ${result.created} question${result.created === 1 ? '' : 's'}.`);
+          setView('list');
+        }}
+      />
+    );
+  }
 
   const grouped = new Map();
 
@@ -55,6 +75,16 @@ export default function Quizzes() {
 
   return (
     <div className="page stack fade-in">
+      {notice && (
+        <div className="form-success">
+          <CheckCircle2 className="icon-16 form-error-icon" />
+          <span className="form-success-text">{notice}</span>
+          <button onClick={() => setNotice('')} className="btn-ghost" aria-label="Dismiss">
+            <X className="icon-16" />
+          </button>
+        </div>
+      )}
+
       <div className="page-head">
         <div>
           <h2 className="page-title serif">Quiz Questions</h2>
@@ -224,7 +254,15 @@ export default function Quizzes() {
         </div>
       )}
 
-      {showForm && <QuestionForm onClose={() => setShowForm(false)} />}
+      {showForm && (
+        <QuestionForm
+          onClose={() => setShowForm(false)}
+          onBulkUpload={() => {
+            setShowForm(false);
+            setView('bulk');
+          }}
+        />
+      )}
       {editing && <QuestionForm question={editing} onClose={() => setEditing(null)} />}
     </div>
   );
@@ -247,7 +285,7 @@ function BookSkeletonList() {
   );
 }
 
-function QuestionForm({ question, onClose }) {
+function QuestionForm({ question, onClose, onBulkUpload }) {
   const { addQuestion, updateQuestion } = useQuestionsContext();
   const isEdit = Boolean(question);
   const [book, setBook] = useState(question?.book || 'Genesis');
@@ -387,6 +425,13 @@ function QuestionForm({ question, onClose }) {
         >
           {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Question'}
         </button>
+
+        {!isEdit && onBulkUpload && (
+          <button onClick={onBulkUpload} className="btn-secondary btn-block btn-bulk">
+            <Upload className="icon-16" />
+            Bulk Upload
+          </button>
+        )}
       </div>
     </div>
   );

@@ -29,27 +29,89 @@ class QuestionController extends Controller
             'num_verses' => 'nullable|integer|min:0',
         ]);
 
-        $question = DB::transaction(function () use ($data) {
-            $chapter = BookChapter::firstOrCreate(
-                ['book' => $data['book'], 'chapter_number' => $data['chapter']],
-                ['num_verses' => $data['num_verses'] ?? 0]
-            );
-
-            $question = $chapter->questions()->create([
-                'question_text' => $data['question_text'],
-            ]);
-
-            foreach ($data['options'] as $letter => $text) {
-                $question->answers()->create([
-                    'answer_text' => $text,
-                    'correct_answer' => $letter === $data['correct_option'],
-                ]);
-            }
-
-            return $question;
-        });
+        $question = DB::transaction(fn () => $this->createQuestion($data));
 
         return response($question->load(['chapter', 'answers']), 201);
+    }
+
+    /**
+     * Create many questions and their choices from one request body.
+     *
+     * POST /api/questions/bulk  (application/json, body: an array of rows)
+     *
+     * The body is a JSON array of question rows, in the same shape the single
+     * create takes. Every row names its chapter with `book_chapter_id`, which
+     * must already exist — this never creates a chapter, so a wrong id is a
+     * rejection rather than a new book nobody meant to add.
+     *
+     * The whole array is validated before any row is written, and the writes
+     * run in one transaction, so a bad row means nothing is imported instead
+     * of a half-imported file the admin has to clean up by hand.
+     */
+    public function bulkStore(Request $request)
+    {
+        $rows = $request->validate([
+            '*' => 'required|array',
+            '*.book_chapter_id' => 'required|integer|exists:book_chapters,id',
+            '*.question_text' => 'required|string',
+            '*.options' => 'required|array',
+            '*.options.a' => 'required|string',
+            '*.options.b' => 'required|string',
+            '*.options.c' => 'required|string',
+            '*.options.d' => 'required|string',
+            '*.correct_option' => 'required|in:a,b,c,d',
+        ]);
+
+        $questionIds = DB::transaction(function () use ($rows) {
+            $ids = [];
+
+            foreach ($rows as $row) {
+                $question = Question::create([
+                    'chapter_id' => $row['book_chapter_id'],
+                    'question_text' => $row['question_text'],
+                ]);
+
+                foreach (['a', 'b', 'c', 'd'] as $letter) {
+                    $question->answers()->create([
+                        'answer_text' => $row['options'][$letter],
+                        'correct_answer' => $letter === $row['correct_option'],
+                    ]);
+                }
+
+                $ids[] = $question->id;
+            }
+
+            return $ids;
+        });
+
+        return response()->json([
+            'created' => count($questionIds),
+            'question_ids' => $questionIds,
+        ], 201);
+    }
+
+    /**
+     * Create one question with its chapter and four choices.
+     */
+    private function createQuestion(array $data): Question
+    {
+        $chapter = BookChapter::firstOrCreate(
+            ['book' => $data['book'], 'chapter_number' => $data['chapter']],
+            ['num_verses' => $data['num_verses'] ?? 0]
+        );
+
+        $question = $chapter->questions()->create([
+            'question_text' => $data['question_text'],
+        ]);
+
+        foreach (['a', 'b', 'c', 'd'] as $letter) {
+            $question->answers()->create([
+                'answer_text' => $data['options'][$letter],
+                'correct_answer' => $letter === $data['correct_option'],
+            ]);
+        }
+
+        return $question;
     }
 
     public function show(Question $question)
