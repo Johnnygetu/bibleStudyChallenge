@@ -12,10 +12,10 @@ class PlanSeeder extends Seeder
         Plan::firstOrCreate(
             ['name' => 'Chronological Bible Reading'],
             [
-                'no_days'              => 183,
+                'no_days'              => 180,
                 'starting_day'         => today(),
                 'reading_days_per_week' => 7,
-                'daily_verse_limit'    => 176,
+                'daily_verse_limit'    => 189,
             ]
         );
     }
