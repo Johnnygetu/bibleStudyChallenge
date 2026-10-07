@@ -1,17 +1,6 @@
 [
   {
-    "book_chapter_id": "2 ዜና 36:17",
-    "question_text": "ኢየሩሳሌም ከወደቀች በኋላ የይሁዳን ሕዝብ ማርኮ የወሰዳቸው ማን ነው?",
-    "options": {
-      "a": "ከለዳውያን/ባቢሎናውያን",
-      "b": "ፍልስጥኤማውያን",
-      "c": "ግብፃውያን",
-      "d": "ሞአባውያን"
-    },
-    "correct_option": "a"
-  },
-  {
-    "book_chapter_id": "ምሳሌ 1:7",
+    "book_chapter_id": 629,
     "question_text": "እንደ ምሳሌ መጽሐፍ አባባል የእውቀት መጀመሪያ ምንድር ነው?",
     "options": {
       "a": "እግዚአብሔርን መፍራት",
@@ -22,7 +11,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 3:5",
+    "book_chapter_id": 631,
     "question_text": "አንድ ሰው በራሱ ማስተዋል ብቻ ከመደገፍ ይልቅ በማን መታመን አለበት?",
     "options": {
       "a": "በፍጹም ልቡ በእግዚአብሔር",
@@ -33,7 +22,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 6:6",
+    "book_chapter_id": 634,
     "question_text": "በምሳሌ ምዕራፍ 6 መሠረት አንድ ሰው ከጉንዳን ምን ሊማር እንደሚችል ይናገራል?",
     "options": {
       "a": "ትጋትንና ዝግጅትን",
@@ -44,7 +33,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 7:25",
+    "book_chapter_id": 635,
     "question_text": "ምሳሌ ምዕራፍ 7 ስለ አመንዝራይቱ ሴት ምን ማስጠንቀቂያ ይሰጣል?",
     "options": {
       "a": "ልብህ ወደ መንገዷ ፈቀቅ አይበል",
@@ -55,7 +44,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 8:17",
+    "book_chapter_id": 636,
     "question_text": "መጽሐፈ ምሳሌ ጥበብን ስለሚወዱ ሰዎች ምን ይላል?",
     "options": {
       "a": "የሚወድዷት ያገኟታል",
@@ -66,7 +55,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 10:17",
+    "book_chapter_id": 638,
     "question_text": "መጽሐፈ ምሳሌ ተግሣጽን ስለሚሰማ ሰው ምን ይላል?",
     "options": {
       "a": "ወደ ሕይወት በሚወስደው መንገድ ላይ ነው",
@@ -77,7 +66,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 9:10",
+    "book_chapter_id": 637,
     "question_text": "መጽሐፈ ምሳሌ እግዚአብሔርን ስለ መፍራት ምን ይላል?",
     "options": {
       "a": "የጥበብ መጀመሪያ ነው",
@@ -88,7 +77,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 15:1",
+    "book_chapter_id": 643,
     "question_text": "መጽሐፈ ምሳሌ የየዋህ (የለዘበ) መልስ ምን እንደሚያደርግ ይናገራል?",
     "options": {
       "a": "ቍጣን ይመልሳል",
@@ -99,7 +88,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 16:18",
+    "book_chapter_id": 644,
     "question_text": "መጽሐፈ ምሳሌ ትዕቢት ከምን በፊት እንደሚቀድም ይናገራል?",
     "options": {
       "a": "ከጥፋት",
@@ -110,7 +99,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 17:17",
+    "book_chapter_id": 645,
     "question_text": "መጽሐፈ ምሳሌ ስለ ታማኝ ወዳጅ ምን ይላል?",
     "options": {
       "a": "ወዳጅ በሁሉ ጊዜ ይወዳል",
@@ -121,7 +110,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 19:17",
+    "book_chapter_id": 647,
     "question_text": "መጽሐፈ ምሳሌ ለድሀ ስለሚሰጥ ሰው ምን ይላል?",
     "options": {
       "a": "ለእግዚአብሔር ያበድራል",
@@ -132,7 +121,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 27:17",
+    "book_chapter_id": 655,
     "question_text": "መጽሐፈ ምሳሌ ብረት ብረትን ስለ መሳሉ ምን ይላል?",
     "options": {
       "a": "ሰውም እንዲሁ የባልንጀራውን ፊት ይስላል",
@@ -143,7 +132,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 21:3",
+    "book_chapter_id": 649,
     "question_text": "መጽሐፈ ምሳሌ ከመሥዋዕት ይልቅ ምን እንደሚሻል ይናገራል?",
     "options": {
       "a": "ጽድቅንና ፍርድን ማድረግ",
@@ -154,7 +143,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 21:5",
+    "book_chapter_id": 649,
     "question_text": "መጽሐፈ ምሳሌ ስለ ትጉህ ሰው ዕቅድ ምን ይላል?",
     "options": {
       "a": "ወደ ጥጋብና ወደ ማትረፍ ብቻ ያደርሳል",
@@ -165,7 +154,7 @@
     "correct_option": "a"
   },
   {
-    "book_chapter_id": "ምሳሌ 31:30",
+    "book_chapter_id": 659,
     "question_text": "መጽሐፈ ምሳሌ እግዚአብሔርን ስለ መፍራት ምን ይላል?",
     "options": {
       "a": "እርሷ ትመሰገናለች",
