@@ -52,6 +52,11 @@ export function UserProvider({ children }) {
   const [telegramAttempt, setTelegramAttempt] = useState(0);
   const { apiUrl, profile } = useGeneralContext();
 
+  const clearUser = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEY);
+    setUser(null);
+  }, []);
+
   // Hydrate the Telegram user when it becomes available (first open).
   // Bumping telegramAttempt (Retry) re-runs the wait.
   useEffect(() => {
@@ -276,6 +281,7 @@ export function UserProvider({ children }) {
 
   const value = {
     user,
+    clearUser,
     isRegistered: user !== null,
     displayName: user?.fullName?.trim() || profile.first_name,
     telegramUser,

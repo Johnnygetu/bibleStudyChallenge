@@ -36,47 +36,45 @@ class Plan extends Model
      */
     public function getSchedule()
     {
-        $cacheKey = "plan_{$this->id}_schedule";
+        $cacheKey = "plan_{$this->id}_schedule_v3";
 
         return Cache::rememberForever($cacheKey, function () {
             $orders = $this->orders()->with('chapter')->orderBy('id')->get();
-
             $schedule = [];
             $dayNumber = 1;
-            $currentDayVerses = 0;
-            $currentDayChapters = [];
+            $dayVerses = 0;
+            $dayChapters = [];
+            $limit = max(1, (int) $this->daily_verse_limit);
 
             foreach ($orders as $order) {
-                $chapter = $order->chapter;
-                $verseCount = $chapter->num_verses;
-
-                // If adding this chapter exceeds the limit (and we already have at least one chapter today)
-                if ($currentDayVerses + $verseCount > $this->daily_verse_limit && count($currentDayChapters) > 0) {
-                    $schedule[] = [
-                        'day' => $dayNumber,
-                        'total_verses' => $currentDayVerses,
-                        'chapters' => $currentDayChapters,
-                    ];
-                    $dayNumber++;
-                    $currentDayVerses = 0;
-                    $currentDayChapters = [];
-                }
-
-                $currentDayChapters[] = [
+                $verseCount = $order->chapter->num_verses;
+                $dayChapters[] = [
                     'order_id' => $order->id,
-                    'book' => $chapter->book,
-                    'chapter_number' => $chapter->chapter_number,
+                    'book' => $order->chapter->book,
+                    'chapter_number' => $order->chapter->chapter_number,
                     'num_verses' => $verseCount,
                 ];
-                $currentDayVerses += $verseCount;
+                $dayVerses += $verseCount;
+
+                // Include the one whole chapter that reaches or crosses the
+                // limit, then end this day's group immediately.
+                if ($dayVerses >= $limit) {
+                    $schedule[] = [
+                        'day' => $dayNumber,
+                        'total_verses' => $dayVerses,
+                        'chapters' => $dayChapters,
+                    ];
+                    $dayNumber++;
+                    $dayVerses = 0;
+                    $dayChapters = [];
+                }
             }
 
-            // Add the final day
-            if (count($currentDayChapters) > 0) {
+            if ($dayChapters !== []) {
                 $schedule[] = [
                     'day' => $dayNumber,
-                    'total_verses' => $currentDayVerses,
-                    'chapters' => $currentDayChapters,
+                    'total_verses' => $dayVerses,
+                    'chapters' => $dayChapters,
                 ];
             }
 
@@ -120,6 +118,16 @@ class Plan extends Model
         }
 
         $schedule = $this->getSchedule();
+        if ($schedule === []) {
+            return [
+                'is_lagging' => false,
+                'current_day_number' => 0,
+                'actual_order_id' => $actualOrderId,
+                'lagging_chapters' => 0,
+                'lagging_verses' => 0,
+            ];
+        }
+
         $targetDayIndex = min($daysElapsed - 1, count($schedule) - 1);
         $targetDayData = $schedule[$targetDayIndex];
 
@@ -161,5 +169,7 @@ class Plan extends Model
     public function clearScheduleCache()
     {
         Cache::forget("plan_{$this->id}_schedule");
+        Cache::forget("plan_{$this->id}_schedule_v2");
+        Cache::forget("plan_{$this->id}_schedule_v3");
     }
 }

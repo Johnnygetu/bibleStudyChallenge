@@ -12,6 +12,8 @@ class PlanController extends Controller
         $data = $request->validate(['daily_verse_limit' => 'required|integer|min:1']);
         $plan->update($data);
         $plan->clearScheduleCache();
+        $plan->update(['no_days' => count($plan->getSchedule())]);
+
         return $plan;
     }
 

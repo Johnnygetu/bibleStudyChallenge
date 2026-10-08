@@ -16,13 +16,14 @@ class OrderSeeder extends Seeder
 
         if (! file_exists($jsonPath)) {
             $this->command->error("Bible chronological order file not found at: {$jsonPath}");
+
             return;
         }
 
         $chapterIds = json_decode(file_get_contents($jsonPath), true);
 
-        $rows = array_map(fn($chapterId) => [
-            'plan_id'    => $plan->id,
+        $rows = array_map(fn ($chapterId) => [
+            'plan_id' => $plan->id,
             'chapter_id' => $chapterId,
             'created_at' => now(),
             'updated_at' => now(),
@@ -32,6 +33,11 @@ class OrderSeeder extends Seeder
             DB::table('orders')->insertOrIgnore($chunk);
         }
 
-        $this->command->info('Seeded ' . count($rows) . ' chronological orders.');
+        // Keep the plan's stored duration aligned with the groups generated
+        // from its verse limit (including the final short group).
+        $plan->clearScheduleCache();
+        $plan->update(['no_days' => count($plan->getSchedule())]);
+
+        $this->command->info('Seeded '.count($rows).' chronological orders.');
     }
 }

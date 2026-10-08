@@ -88,6 +88,7 @@ class ReaderController extends Controller
         $dynamicLimit = $baseLimit;
         $isCatchUpMode = false;
         $extraVersesAdded = 0;
+        $gracePeriodDays = 30;
 
         // Calculate lag based on yesterday's progress. This ensures the daily readings
         // stay perfectly fixed for the entire calendar day, even if they save progress.
@@ -95,8 +96,7 @@ class ReaderController extends Controller
 
         // 30-day Tolerance Logic
         if ($lagData['is_lagging']) {
-            $toleranceDays = 30;
-            $maxToleranceVerses = $toleranceDays * $baseLimit;
+            $maxToleranceVerses = $gracePeriodDays * $baseLimit;
 
             // They have exhausted the 30-day buffer
             if ($lagData['lagging_verses'] > $maxToleranceVerses) {
@@ -104,7 +104,7 @@ class ReaderController extends Controller
                 $totalPlanDays = count($plan->getSchedule());
 
                 // Calculate remaining days until absolute deadline
-                $remainingDays = max(1, ($totalPlanDays + $toleranceDays) - $lagData['current_day_number'] + 1);
+                $remainingDays = max(1, ($totalPlanDays + $gracePeriodDays) - $lagData['current_day_number'] + 1);
 
                 $extraVersesAdded = (int) ceil($excessVerses / $remainingDays);
                 $dynamicLimit = $baseLimit + $extraVersesAdded;
@@ -150,8 +150,8 @@ class ReaderController extends Controller
 
             $versesUsed += $verseCount;
 
-            // Option B rule: Finish the chapter!
-            // We add the chapter first, then if we hit/passed the limit, we stop.
+            // Finish the chapter that reaches or crosses today's target, then
+            // stop so no second over-limit chapter is added.
             if ($versesUsed >= $dynamicLimit) {
                 break;
             }
@@ -159,7 +159,10 @@ class ReaderController extends Controller
 
         // Day and streak numbers for the reader-facing UI
         $totalDays = count($plan->getSchedule());
-        $currentDayNumber = $lagData['current_day_number'] ?? 1;
+        $elapsedDayNumber = $lagData['current_day_number'] ?? 1;
+        // Keep counting through the 30-day grace period so readers can see
+        // how far into it they are, while leaving the plan's total unchanged.
+        $currentDayNumber = min($elapsedDayNumber, $totalDays + $gracePeriodDays);
 
         // Start-date info so the reader app can show an "X days left" countdown
         // while the plan's starting_day is still in the future.
