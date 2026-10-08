@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\DailyReadingBroadcastController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\LeaderboardController;
@@ -8,6 +9,8 @@ use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\ReaderController;
+use App\Http\Controllers\TelegramController;
+use App\Http\Controllers\TelegramLeaderboardController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('test', fn () => response(['message' => 'Test'], 200));
@@ -31,3 +34,10 @@ Route::post('readers/{reader}/scores', [ReaderController::class, 'storeScore'])-
 
 Route::get('plans/{plan}/schedule', [PlanController::class, 'schedule']);
 Route::patch('plans/{plan}/daily-verse-limit', [PlanController::class, 'updateDailyVerseLimit']);
+
+// Daily broadcast: every reader gets today's reading over Telegram.
+Route::post('telegram/daily-readings', DailyReadingBroadcastController::class)->name('telegram.daily-readings');
+
+// Leaderboard broadcast: the standings go to the Telegram group.
+Route::post('telegram/leaderboard', TelegramLeaderboardController::class)->name('telegram.leaderboard');
+Route::post('telegram', [TelegramController::class, 'webhook'])->name('telegram.webhook');
