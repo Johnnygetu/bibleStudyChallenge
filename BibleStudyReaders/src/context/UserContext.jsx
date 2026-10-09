@@ -196,14 +196,12 @@ export function UserProvider({ children }) {
         if (cancelled) return;
         if (res.status === 404) {
           localStorage.clear();
-          alert("cleared");
           return;
         }
         if (!res.ok) return;
         const reader = await res.json().catch(() => null);
         if (!reader) {
           localStorage.clear();
-          alert("cleared");
         }
       })
       .catch(() => {});
