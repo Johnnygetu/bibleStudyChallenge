@@ -14,7 +14,7 @@ const chapterLabel = (reading) => `${reading.book} ${reading.chapter_number}`;
 
 export function ReadingProvider({ children }) {
   const { apiUrl } = useGeneralContext();
-  const { user } = useUserContext();
+  const { user, clearUser } = useUserContext();
   const { buildUrl } = useDateOverride();
 
   const [readings, setReadings] = useState([]);
@@ -60,6 +60,26 @@ export function ReadingProvider({ children }) {
         const res = await fetch(buildUrl(`${apiUrl}/readers/${user.id}/plans/1/daily-readings`), {
           headers: { Accept: "application/json" },
         });
+
+        // A database reset can leave a valid-looking reader ID in this
+        // browser's local storage. Only clear it when the reader endpoint
+        // confirms that the account itself is gone; a missing plan or route
+        // should remain a visible API error instead of forcing registration.
+        if (res.status === 404) {
+          const readerResponse = await fetch(`${apiUrl}/readers/${user.id}`, {
+            headers: { Accept: "application/json" },
+          });
+
+          if (readerResponse.status === 404) {
+            clearUser();
+            setApiMetadata(null);
+            setReadings([]);
+            setCompletedLabels(new Set());
+            setError(null);
+            return;
+          }
+        }
+
         const data = await readJsonResponse(res, "Today's reading");
         if (!Array.isArray(data?.readings)) {
           throw new Error("The server returned an invalid daily reading response.");
@@ -97,7 +117,7 @@ export function ReadingProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [user, apiUrl, buildUrl, reloadToken]);
+  }, [user, apiUrl, buildUrl, reloadToken, clearUser]);
 
   // The success/error message clears itself after a few seconds.
   useEffect(() => {
@@ -145,18 +165,22 @@ export function ReadingProvider({ children }) {
   }, [allTodayChapters, completedLabels, savedLabels]);
 
   const todayGroups = useMemo(() => {
-    const groups = new Map();
-    readings.forEach((reading) => {
+    const groups = [];
+    readings.forEach((reading, index) => {
       const label = chapterLabel(reading);
-      if (!groups.has(reading.book)) {
-        groups.set(reading.book, {
-          id: reading.book.toLowerCase().replace(/\s+/g, "-"),
+      let group = groups[groups.length - 1];
+      if (!group || group.book !== reading.book) {
+        group = {
+          // Include the position so a book that appears again later gets its
+          // own section and a distinct React key.
+          id: `${reading.book.toLowerCase().replace(/\s+/g, "-")}-${index}`,
           book: reading.book,
           chapters: [],
-        });
+        };
+        groups.push(group);
       }
       const isSaved = savedLabels.has(label);
-      groups.get(reading.book).chapters.push({
+      group.chapters.push({
         label,
         chapterNum: reading.chapter_number,
         done: completedLabels.has(label),
@@ -167,7 +191,7 @@ export function ReadingProvider({ children }) {
         locked: !enabledLabels.has(label) && !isSaved,
       });
     });
-    return [...groups.values()];
+    return groups;
   }, [readings, completedLabels, enabledLabels, savedLabels]);
 
   const todayCompletedCount = allTodayChapters.filter((label) => completedLabels.has(label)).length;
@@ -240,9 +264,18 @@ export function ReadingProvider({ children }) {
       });
       if (res.ok) {
         hapticNotification("success");
-        // The card swaps the checklist for the completion message, which is
-        // the confirmation — a toast on top of it would just repeat itself.
-        setSavedToday(true);
+        const finishedToday = readings.length > 0 && checkedChapters.length === readings.length;
+        if (finishedToday) {
+          // Only replace the checklist after every assigned chapter is checked.
+          setSavedToday(true);
+          setSaveMessage(null);
+        } else {
+          setSavedToday(false);
+          setSaveMessage({
+            type: "success",
+            text: "Progress saved. Finish the remaining chapters to complete today's reading.",
+          });
+        }
         // Re-fetch daily readings so the UI reflects the newly saved progress.
         reload();
       } else {

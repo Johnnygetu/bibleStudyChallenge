@@ -23,7 +23,8 @@ class DashboardController extends Controller
         $totalWeeks = null;
 
         if ($plan) {
-            $totalWeeks = max(1, (int) ceil($plan->no_days / 7));
+            $totalDays = count($plan->getSchedule());
+            $totalWeeks = max(1, (int) ceil($totalDays / 7));
             $start = Carbon::parse($plan->starting_day)->startOfDay();
             $daysElapsed = (int) floor(
                 (now()->startOfDay()->getTimestamp() - $start->getTimestamp()) / 86400
