@@ -12,9 +12,30 @@ use Illuminate\Support\Facades\DB;
 
 class ReaderController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        if ($request->has('chat_id')) {
+            $reader = Reader::where('chat_id', $request->query('chat_id'))->first();
+
+            if (! $reader) {
+                return response()->json(null, 404);
+            }
+
+            return response()->json($reader);
+        }
+
         return Reader::all();
+    }
+
+    public function showByChatId(string $chatId)
+    {
+        $reader = Reader::where('chat_id', $chatId)->first();
+
+        if (! $reader) {
+            return response()->json(null, 404);
+        }
+
+        return response()->json($reader);
     }
 
     public function store(Request $request)

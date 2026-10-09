@@ -181,6 +181,38 @@ export function UserProvider({ children }) {
     return next;
   };
 
+  // Fetches the Reader model using the chat id — if no Reader is returned
+  // the local device data is stale / orphaned, so clear it.
+  useEffect(() => {
+    const chatId = telegramUser?.id ? String(telegramUser.id) : "";
+    if (!chatId || !apiUrl) return;
+
+    let cancelled = false;
+
+    fetch(`${apiUrl}/readers/by-chat/${chatId}`, {
+      headers: { Accept: "application/json" },
+    })
+      .then(async (res) => {
+        if (cancelled) return;
+        if (res.status === 404) {
+          localStorage.clear();
+          alert("cleared");
+          return;
+        }
+        if (!res.ok) return;
+        const reader = await res.json().catch(() => null);
+        if (!reader) {
+          localStorage.clear();
+          alert("cleared");
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiUrl, telegramUser?.id]);
+
   // A chat id the registration missed (it was still loading, or the account
   // was made outside Telegram) is attached silently on the first launch that
   // does have one, so the optional id is never permanently missing. Best
