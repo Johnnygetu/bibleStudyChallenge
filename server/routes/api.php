@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\DailyReadingBroadcastController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GroupController;
+use App\Http\Controllers\InactiveReaderReminderController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProgressController;
@@ -41,4 +42,7 @@ Route::post('telegram/daily-readings', DailyReadingBroadcastController::class)->
 
 // Leaderboard broadcast: the standings go to the Telegram group.
 Route::post('telegram/leaderboard', TelegramLeaderboardController::class)->name('telegram.leaderboard');
+
+// Win-back reminder: readers who have not read for about a week get a nudge to return.
+Route::post('telegram/inactive-readers', InactiveReaderReminderController::class)->name('telegram.inactive-readers');
 Route::post('telegram', [TelegramController::class, 'webhook'])->name('telegram.webhook');
