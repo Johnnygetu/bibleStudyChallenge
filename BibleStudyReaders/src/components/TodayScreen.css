@@ -304,7 +304,7 @@
 }
 
 .chapter-group__title {
-  font-family: var(--font-serif);
+  font-family: var(--font-amharic);
   font-weight: 500;
   color: var(--ink-100);
 }
@@ -391,6 +391,7 @@
 }
 
 .chapter-toggle__label {
+  font-family: var(--font-amharic);
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--ink-200);
@@ -472,6 +473,7 @@
 }
 
 .quiz-item__question {
+  font-family: var(--font-amharic);
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--ink-200);
@@ -494,6 +496,7 @@
   padding: 0.75rem;
   border-radius: 0.75rem;
   border: 1px solid rgba(229, 229, 229, 0.5);
+  font-family: var(--font-amharic);
   font-size: 0.875rem;
   transition: all 0.15s ease;
   display: flex;

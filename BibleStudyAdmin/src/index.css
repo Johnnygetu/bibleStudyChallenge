@@ -1,5 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* Amharic scripture/questions font. Bold headline cut added under src/assets. */
+@font-face {
+  font-family: 'Nokia Pure Headline';
+  src: url('./assets/nokia-pure-headline-bd.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ============================================================
    Design tokens (ported from the previous Tailwind palette)
    ============================================================ */
@@ -41,6 +50,8 @@
 
   --font-serif: 'Cormorant Garamond', Georgia, serif;
   --font-sans: 'Inter', system-ui, sans-serif;
+  /* Used only for Amharic question and option text. */
+  --font-amharic: 'Nokia Pure Headline', var(--font-serif), system-ui, sans-serif;
 }
 
 /* ============================================================
@@ -1572,6 +1583,7 @@ img.avatar {
 }
 
 .q-text {
+  font-family: var(--font-amharic);
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--ink-100);
@@ -1680,6 +1692,7 @@ img.avatar {
 }
 
 .q-opt-text {
+  font-family: var(--font-amharic);
   flex: 1;
 }
 
