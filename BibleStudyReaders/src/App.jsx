@@ -8,7 +8,10 @@ import { LeaderboardProvider } from "./context/LeaderboardContext.jsx";
 import { ReadingProvider } from "./context/ReadingContext.jsx";
 import { QuizProvider } from "./context/QuizContext.jsx";
 import { RegistrationModal } from "./components/RegistrationModal.jsx";
-import { TestDateBar } from "./components/TestDateBar.jsx";
+// The processing-date test bar is disabled for now — the app uses today's
+// real date only. Re-enable by restoring this import and the <TestDateBar />
+// render below.
+// import { TestDateBar } from "./components/TestDateBar.jsx";
 import "./components/App.css";
 
 function AppContent() {
@@ -37,7 +40,7 @@ function AppContent() {
         {activeTab === "leaderboard" && <LeaderboardScreen />}
       </main>
 
-      <TestDateBar />
+      {/* <TestDateBar /> */}
 
       <nav className="bottom-nav">
         <div className="bottom-nav__inner">
