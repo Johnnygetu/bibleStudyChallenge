@@ -32,6 +32,20 @@ class Plan extends Model
     }
 
     /**
+     * The plan that is in effect today: the most recently started one, or the
+     * newest plan when none has started yet (a challenge queued up ahead of
+     * its start date still counts as the plan).
+     */
+    public static function current(): ?self
+    {
+        return static::query()
+            ->whereDate('starting_day', '<=', today())
+            ->latest('starting_day')
+            ->first()
+            ?? static::query()->latest('starting_day')->first();
+    }
+
+    /**
      * Get the pre-computed reading schedule, caching the result forever.
      */
     public function getSchedule()
@@ -118,7 +132,7 @@ class Plan extends Model
         $startAfterOrderId = $lagData['actual_order_id'];
 
         // Get the absolute latest progress so we know which of today's chapters are already checked off
-        $currentStudy = $reader->studyDays()->latest('id')->first();
+        $currentStudy = $reader->studyDays()->newestPosition()->first();
         $currentOrderId = 0;
         if ($currentStudy) {
             $currentOrder = Order::where('plan_id', $this->id)
@@ -210,10 +224,18 @@ class Plan extends Model
      */
     public function lagFor(Reader $reader, bool $includeToday = true): array
     {
-        $query = $reader->studyDays()->latest('id');
-        if (! $includeToday) {
-            $query->whereDate('created_at', '<', today());
+        $query = $reader->studyDays();
+
+        if ($includeToday) {
+            // The reader's current position: the most recently recorded one
+            // wins, which includes an override an admin made earlier today.
+            $query->latest('id');
+        } else {
+            // The position as of the start of today, which is what today's
+            // fixed reading list is calculated from.
+            $query->whereDate('created_at', '<', today())->newestPosition();
         }
+
         $lastStudy = $query->first();
         $actualOrderId = 0;
 

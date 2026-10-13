@@ -11,6 +11,7 @@ use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\ReaderController;
 use App\Http\Controllers\TelegramController;
+use App\Http\Controllers\TelegramGroupReadingController;
 use App\Http\Controllers\TelegramLeaderboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +33,7 @@ Route::get('progress', [ProgressController::class, 'index'])->name('progress.ind
 Route::get('readers/{reader}/plans/{plan}/daily-readings', [ReaderController::class, 'dailyReadings']);
 Route::get('readers/{reader}/plans/{plan}/lag-status', [ReaderController::class, 'lagStatus']);
 Route::post('readers/{reader}/plans/{plan}/save-progress', [ReaderController::class, 'saveProgress']);
+Route::post('readers/{reader}/plans/{plan}/set-progress', [ReaderController::class, 'setProgress']);
 Route::post('readers/{reader}/scores', [ReaderController::class, 'storeScore'])->name('scores.store');
 
 Route::get('plans/{plan}/schedule', [PlanController::class, 'schedule']);
@@ -39,6 +41,9 @@ Route::patch('plans/{plan}/daily-verse-limit', [PlanController::class, 'updateDa
 
 // Daily broadcast: every reader gets today's reading over Telegram.
 Route::post('telegram/daily-readings', DailyReadingBroadcastController::class)->name('telegram.daily-readings');
+
+// Group reading broadcast: today's reading plan goes to the Telegram group.
+Route::post('telegram/group-reading', TelegramGroupReadingController::class)->name('telegram.group-reading');
 
 // Leaderboard broadcast: the standings go to the Telegram group.
 Route::post('telegram/leaderboard', TelegramLeaderboardController::class)->name('telegram.leaderboard');

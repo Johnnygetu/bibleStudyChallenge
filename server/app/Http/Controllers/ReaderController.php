@@ -7,9 +7,10 @@ use App\Models\Order;
 use App\Models\Plan;
 use App\Models\Reader;
 use App\Models\Score;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class ReaderController extends Controller
 {
@@ -49,28 +50,28 @@ class ReaderController extends Controller
             'chat_id' => 'nullable|integer',
         ]);
 
-        // A chat id already owned by another reader must never block sign-up:
-        // drop it, create the account anyway, and let a later launch attach
-        // a free one. The response carries chat_id = null so the client can
-        // tell it was skipped.
-        if (isset($data['chat_id']) && Reader::where('chat_id', $data['chat_id'])->exists()) {
-            unset($data['chat_id']);
-        }
+        // A chat id identifies one reader. When it is already registered,
+        // return that reader instead of creating a duplicate account — a
+        // repeat launch from the same Telegram account is not a new sign-up.
+        if (isset($data['chat_id'])) {
+            $existing = Reader::where('chat_id', $data['chat_id'])->first();
 
-        try {
-            $reader = Reader::create($data);
-        } catch (UniqueConstraintViolationException $e) {
-            // Lost the race for that chat id — same outcome: register without it.
-            if (! isset($data['chat_id'])) {
-                throw $e;
+            if ($existing) {
+                return response($existing, 200);
             }
-
-            unset($data['chat_id']);
-            $reader = Reader::create($data);
         }
+
+        // A phone number identifies one reader too, so a second sign-up that
+        // reuses one already on file is rejected instead of quietly creating
+        // a duplicate account.
+        Validator::make($data, [
+            'phone_number' => 'unique:readers,phone_number',
+        ])->validate();
+
+        $reader = Reader::create($data);
 
         // Reload so the response always carries every column — including a
-        // chat id that was skipped or absent from the request.
+        // chat id that was absent from the request.
         $reader->refresh();
 
         return response($reader, 201);
@@ -84,7 +85,7 @@ class ReaderController extends Controller
     public function update(Request $request, Reader $reader)
     {
         $data = $request->validate([
-            'phone_number' => 'sometimes|string',
+            'phone_number' => 'sometimes|string|unique:readers,phone_number,'.$reader->id,
             'name' => 'sometimes|string',
             'chat_id' => 'sometimes|nullable|integer|unique:readers,chat_id,'.$reader->id,
         ]);
@@ -124,7 +125,7 @@ class ReaderController extends Controller
 
             // Calculate remaining days until the plan's scheduled end
             $remainingDays = max(1, $totalPlanDays - $lagData['current_day_number'] + 1);
-            
+
             $extraVersesAdded = (int) ceil($excessVerses / $remainingDays);
             $dynamicLimit = $baseLimit + $extraVersesAdded;
             $isCatchUpMode = true;
@@ -133,7 +134,7 @@ class ReaderController extends Controller
         $startAfterOrderId = $lagData['actual_order_id'];
 
         // Get the absolute latest progress so we know which of today's chapters are already checked off
-        $currentStudy = $reader->studyDays()->latest('id')->first();
+        $currentStudy = $reader->studyDays()->newestPosition()->first();
         $currentOrderId = 0;
         if ($currentStudy) {
             $currentOrder = Order::where('plan_id', $plan->id)
@@ -265,6 +266,42 @@ class ReaderController extends Controller
         }
 
         return response()->json(['message' => 'Progress saved successfully.', 'study_day' => $studyDay]);
+    }
+
+    /**
+     * Override a reader's position in the plan to a chapter the admin picks.
+     *
+     * The chosen chapter is recorded as the reader's position at the start of
+     * today, so it takes effect on today's reading: today's list restarts at
+     * the chapter right after it instead of waiting for tomorrow. Today's list
+     * is otherwise fixed for the whole calendar day, which is why the row is
+     * stored just before today rather than as a new reading day.
+     */
+    public function setProgress(Request $request, Reader $reader, Plan $plan)
+    {
+        $data = $request->validate([
+            'order_id' => 'required|integer',
+        ]);
+
+        $order = Order::where('plan_id', $plan->id)->find($data['order_id']);
+
+        if (! $order) {
+            throw ValidationException::withMessages([
+                'order_id' => 'The selected chapter is not part of this plan.',
+            ]);
+        }
+
+        $studyDay = $reader->studyDays()->make([
+            'last_studied_chapter_id' => $order->chapter_id,
+        ]);
+        $studyDay->created_at = today()->startOfDay()->subSecond();
+        $studyDay->save();
+
+        return response([
+            'message' => 'Reader progress updated.',
+            'study_day' => $studyDay,
+            'lag' => $plan->lagFor($reader),
+        ], 201);
     }
 
     /**

@@ -32,14 +32,7 @@ class DailyReadingBroadcastController extends Controller
             return response()->json(['ok' => false, 'error' => 'invalid broadcast token'], 401);
         }
 
-        // The plan the readers are actually on: the most recently started one.
-        // If none has started yet, fall back to the newest plan (a challenge
-        // queued up ahead of its start date still counts as the plan).
-        $plan = Plan::query()
-            ->whereDate('starting_day', '<=', today())
-            ->latest('starting_day')
-            ->first()
-            ?? Plan::query()->latest('starting_day')->first();
+        $plan = Plan::current();
 
         if (! $plan) {
             return response()->json(['ok' => false, 'error' => 'no plan configured'], 404);

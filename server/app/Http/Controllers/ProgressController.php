@@ -59,6 +59,7 @@ class ProgressController extends Controller
                     'total_days' => $totalDays,
                     'days_missed' => $daysMissed,
                     'current_day' => $lag['current_day_number'],
+                    'current_order_id' => $actualOrderId,
                     'last_read_day' => $daysDone > 0 ? $daysDone : null,
                     'current_streak' => $currentStreak,
                     'longest_streak' => $longestStreak,

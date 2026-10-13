@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { Flame, CheckCircle2, ChevronDown, ChevronRight, Calendar, TrendingUp, AlertTriangle, Search } from 'lucide-react';
+import { Flame, CheckCircle2, ChevronDown, ChevronRight, Calendar, TrendingUp, AlertTriangle, Search, Target, X } from 'lucide-react';
 import { Avatar, ProgressBar, ReaderSkeletonList, ErrorState } from '@/components/ui';
 import { useProgressContext } from '@/context/ProgressContext';
 import { isFallingBehind, isOnTrack } from '@/lib/progress';
 
 export default function Progress() {
-  const { data, loading, error, reload } = useProgressContext();
+  const { data, loading, error, reload, chapters, setProgress } = useProgressContext();
   const [expanded, setExpanded] = useState(null);
   const [view, setView] = useState('all');
   const [search, setSearch] = useState('');
+  const [adjusting, setAdjusting] = useState(null);
 
   if (error) {
     return (
@@ -161,6 +162,13 @@ export default function Progress() {
                     {d.reader.phone && (
                       <div className="details-phone">Phone: {d.reader.phone}</div>
                     )}
+                    <button
+                      onClick={() => setAdjusting(d)}
+                      className="btn-secondary btn-block details-action"
+                    >
+                      <Target className="icon-16" />
+                      Set progress
+                    </button>
                   </div>
                 )}
               </div>
@@ -168,6 +176,92 @@ export default function Progress() {
           })}
         </div>
       )}
+
+      {/* Set-progress modal */}
+      {adjusting && (
+        <SetProgressModal
+          reader={adjusting.reader}
+          chapters={chapters}
+          currentOrderId={adjusting.currentOrderId}
+          onClose={() => setAdjusting(null)}
+          onSave={setProgress}
+        />
+      )}
+    </div>
+  );
+}
+
+function SetProgressModal({ reader, chapters, currentOrderId, onClose, onSave }) {
+  const [orderId, setOrderId] = useState(() =>
+    currentOrderId > 0 ? String(currentOrderId) : String(chapters[0]?.orderId ?? ''),
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const selected = chapters.find((c) => String(c.orderId) === String(orderId));
+
+  async function save() {
+    if (!orderId) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave(reader.id, Number(orderId));
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Could not update progress.');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay modal-bottom fade-in" onClick={onClose}>
+      <div className="modal modal-sheet slide-up" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3 className="modal-title serif">Set Progress</h3>
+          <button onClick={onClose} className="btn-ghost">
+            <X className="icon-20" />
+          </button>
+        </div>
+
+        <p className="page-sub">
+          Pick the last chapter {reader.name} read. Today&apos;s reading restarts from here.
+        </p>
+
+        <div className="stack">
+          <div>
+            <label className="field-label">Last chapter read</label>
+            <select
+              value={orderId}
+              onChange={(e) => setOrderId(e.target.value)}
+              className="input"
+              disabled={chapters.length === 0}
+            >
+              {chapters.length === 0 && <option value="">No chapters available</option>}
+              {chapters.map((chapter) => (
+                <option key={chapter.orderId} value={chapter.orderId}>
+                  {chapter.label} · Day {chapter.day}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selected && (
+            <p className="page-sub">
+              {reader.name} will resume after {selected.label}, starting with today&apos;s reading.
+            </p>
+          )}
+
+          {error && <p className="form-error">{error}</p>}
+        </div>
+
+        <button
+          onClick={save}
+          disabled={saving || !orderId}
+          className="btn-primary btn-block btn-save"
+        >
+          {saving ? 'Saving...' : 'Save Progress'}
+        </button>
+      </div>
     </div>
   );
 }
