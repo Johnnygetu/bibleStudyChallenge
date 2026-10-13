@@ -16,7 +16,7 @@ class DailyReadingBroadcastController extends Controller
      *
      * The reading itself comes from the plan's shared calculation
      * (Plan::dailyReadingsFor), so it is exactly what the reader app shows:
-     * same tolerance buffer, same chapter boundary, same day number.
+     * same chapter boundary, same day number.
      *
      * Readers are skipped when they have no chat_id, when the plan has not
      * started yet, or when there is nothing left for them to read.

@@ -139,6 +139,26 @@ class DailyReadingBroadcastTest extends TestCase
         });
     }
 
+    public function test_a_reader_who_falls_behind_gets_a_catch_up_reminder(): void
+    {
+        // Started two days ago, nothing read: behind the one-day schedule with
+        // no grace buffer, so the message carries the catch-up note and the day
+        // counter stops at the plan's length.
+        $this->makePlan(now()->subDays(2)->toDateString());
+        $this->makeReader('Jane Doe', 900000101);
+
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true], 200)]);
+
+        $this->postJson('/api/telegram/daily-readings')
+            ->assertOk()
+            ->assertJson(['sent' => 1]);
+
+        Http::assertSent(function ($request) {
+            return str_contains($request['text'], 'Catch-up mode')
+                && str_contains($request['text'], 'Day 1 of 1');
+        });
+    }
+
     public function test_prefers_the_started_plan_over_a_later_one_in_the_queue(): void
     {
         $startedPlan = $this->makePlan();

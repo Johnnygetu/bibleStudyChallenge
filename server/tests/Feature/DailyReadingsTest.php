@@ -113,4 +113,33 @@ class DailyReadingsTest extends TestCase
             ->assertOk()
             ->assertJsonFragment(['has_submitted_quiz_today' => true]);
     }
+
+    public function test_a_reader_who_falls_behind_enters_catch_up_without_a_grace_period(): void
+    {
+        $reader = $this->makeReader();
+        // Started two days ago with nothing read yet: three chapters behind,
+        // and no 30-day buffer to absorb it.
+        $plan = $this->makePlan(now()->subDays(2)->toDateString());
+
+        $response = $this->getJson("/api/readers/{$reader->id}/plans/{$plan->id}/daily-readings");
+
+        $response->assertOk()
+            ->assertJsonFragment(['is_catch_up_mode' => true]);
+
+        $this->assertGreaterThan(0, $response->json('extra_verses_added'));
+    }
+
+    public function test_never_reports_a_day_beyond_the_plans_length(): void
+    {
+        $reader = $this->makeReader();
+        // Six days into a one-day schedule: with no grace period there is no
+        // day 31+ to show, so the counter stops at the plan's last day.
+        $plan = $this->makePlan(now()->subDays(5)->toDateString());
+
+        $response = $this->getJson("/api/readers/{$reader->id}/plans/{$plan->id}/daily-readings");
+
+        $response->assertOk()
+            ->assertJsonFragment(['total_days' => 1])
+            ->assertJsonFragment(['current_day' => 1]);
+    }
 }

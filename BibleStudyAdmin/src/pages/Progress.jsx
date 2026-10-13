@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Flame, CheckCircle2, ChevronDown, ChevronRight, Calendar, TrendingUp, AlertTriangle, Search } from 'lucide-react';
 import { Avatar, ProgressBar, ReaderSkeletonList, ErrorState } from '@/components/ui';
 import { useProgressContext } from '@/context/ProgressContext';
+import { isFallingBehind, isOnTrack } from '@/lib/progress';
 
 export default function Progress() {
   const { data, loading, error, reload } = useProgressContext();
@@ -22,8 +23,8 @@ export default function Progress() {
       d.reader.name.toLowerCase().includes(search.toLowerCase()) ||
       (d.reader.phone || '').includes(search);
     if (!matchesSearch) return false;
-    if (view === 'ontrack') return d.missedDays <= 2 && d.reader.status === 'active';
-    if (view === 'behind') return d.missedDays > 2 && d.reader.status === 'active';
+    if (view === 'ontrack') return isOnTrack(d.missedDays) && d.reader.status === 'active';
+    if (view === 'behind') return isFallingBehind(d.missedDays) && d.reader.status === 'active';
     return true;
   });
 
@@ -87,7 +88,7 @@ export default function Progress() {
         <div className="list-tight">
           {filtered.map((d) => {
             const isExpanded = expanded === d.reader.id;
-            const isBehind = d.missedDays > 2;
+            const isBehind = isFallingBehind(d.missedDays);
             return (
               <div key={d.reader.id} className="card overflow-hidden">
                 <button

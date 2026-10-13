@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { dummyReaders } from '@/lib/dummy';
+import { isFallingBehind, isOnTrack } from '@/lib/progress';
 
 import { apiUrl } from '@/context/apiUrl';
 
-// Owns the dashboard's data. Totals and recent readers come from the
-// server; the consistency stats (streak / on track / falling behind)
-// still come from the dummy sources until the server records them.
+// Owns the dashboard's data: totals and recent readers come from the dashboard
+// endpoint, while on track / falling behind is derived from the same per-reader
+// progress the Progress page shows.
 export const DashboardContext = createContext(null);
 
 export function DashboardProvider({ children }) {
@@ -20,19 +20,28 @@ export function DashboardProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${apiUrl}/dashboard`, {
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) {
-        throw new Error(`The server responded with ${response.status}.`);
+      const [dashboardResponse, progressResponse] = await Promise.all([
+        fetch(`${apiUrl}/dashboard`, {
+          headers: { Accept: 'application/json' },
+        }),
+        fetch(`${apiUrl}/progress`, {
+          headers: { Accept: 'application/json' },
+        }),
+      ]);
+      if (!dashboardResponse.ok) {
+        throw new Error(`The server responded with ${dashboardResponse.status}.`);
       }
-      const data = await response.json();
+      if (!progressResponse.ok) {
+        throw new Error(`The server responded with ${progressResponse.status}.`);
+      }
+      const data = await dashboardResponse.json();
+      const progress = await progressResponse.json();
 
-      // Track stats (on track / falling behind) aren't recorded by the
-      // server yet — derive them from the dummy readers for now.
-      const active = dummyReaders.filter((r) => r.status === 'active');
-      const onTrack = active.filter((r) => r.current_streak >= 3).length;
-      const fallingBehind = active.filter((r) => r.current_streak === 0).length;
+      // Counts come from the readers' real progress, using the same split as
+      // the Progress page so the cards and its filter tabs always agree.
+      const readers = progress.readers || [];
+      const onTrack = readers.filter((r) => isOnTrack(r.days_missed)).length;
+      const fallingBehind = readers.filter((r) => isFallingBehind(r.days_missed)).length;
 
       // The week banner comes from the reading plan on the server; fall
       // back to the old date-based estimate when no plan exists yet.

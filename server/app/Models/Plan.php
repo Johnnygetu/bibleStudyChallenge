@@ -83,9 +83,9 @@ class Plan extends Model
     }
 
     /**
-     * Today's readings for one reader: applies dynamic limits based on the
-     * 30-day tolerance buffer, always finishes on a whole chapter boundary,
-     * and reports the day/streak numbers the reader-facing UI needs.
+     * Today's readings for one reader: applies dynamic limits so a reader who
+     * has fallen behind can catch up, always finishes on a whole chapter
+     * boundary, and reports the day/streak numbers the reader-facing UI needs.
      *
      * Shared by the reader-facing endpoint and the daily Telegram broadcast
      * so both can never drift apart.
@@ -101,23 +101,18 @@ class Plan extends Model
         // stay perfectly fixed for the entire calendar day, even if they save progress.
         $lagData = $this->lagFor($reader, false);
 
-        // 30-day Tolerance Logic
+        // Catch-up logic: a reader who is behind gets extra verses today so the
+        // remaining chapters still fit before the plan's scheduled end.
         if ($lagData['is_lagging']) {
-            $toleranceDays = 30;
-            $maxToleranceVerses = $toleranceDays * $baseLimit;
+            $excessVerses = $lagData['lagging_verses'];
+            $totalPlanDays = count($this->getSchedule());
 
-            // They have exhausted the 30-day buffer
-            if ($lagData['lagging_verses'] > $maxToleranceVerses) {
-                $excessVerses = $lagData['lagging_verses'] - $maxToleranceVerses;
-                $totalPlanDays = count($this->getSchedule());
+            // Calculate remaining days until the plan's scheduled end
+            $remainingDays = max(1, $totalPlanDays - $lagData['current_day_number'] + 1);
 
-                // Calculate remaining days until absolute deadline
-                $remainingDays = max(1, ($totalPlanDays + $toleranceDays) - $lagData['current_day_number'] + 1);
-
-                $extraVersesAdded = (int) ceil($excessVerses / $remainingDays);
-                $dynamicLimit = $baseLimit + $extraVersesAdded;
-                $isCatchUpMode = true;
-            }
+            $extraVersesAdded = (int) ceil($excessVerses / $remainingDays);
+            $dynamicLimit = $baseLimit + $extraVersesAdded;
+            $isCatchUpMode = true;
         }
 
         $startAfterOrderId = $lagData['actual_order_id'];
@@ -167,7 +162,8 @@ class Plan extends Model
 
         // Day and streak numbers for the reader-facing UI
         $totalDays = count($this->getSchedule());
-        $currentDayNumber = $lagData['current_day_number'] ?? 1;
+        // Never report a day beyond the plan's length.
+        $currentDayNumber = min($lagData['current_day_number'] ?? 1, $totalDays);
 
         // Start-date info so the reader app can show an "X days left" countdown
         // while the plan's starting_day is still in the future.
