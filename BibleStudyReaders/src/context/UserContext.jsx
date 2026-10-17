@@ -186,13 +186,24 @@ export function UserProvider({ children }) {
     return next;
   };
 
-  // Fetches the Reader model using the chat id — if no Reader is returned
-  // the local device data is stale / orphaned, so clear it.
+  // Fetches the Reader model using the chat id when the app first runs. If no
+  // Reader comes back, the local device data is stale / orphaned, so wipe the
+  // storage AND the in-memory user: the app then shows the registration modal
+  // as though it is registering from scratch.
   useEffect(() => {
     const chatId = telegramUser?.id ? String(telegramUser.id) : "";
     if (!chatId || !apiUrl) return;
 
     let cancelled = false;
+
+    const resetForFreshRegistration = () => {
+      // A pristine first run: nothing stored, no user in memory, and a fresh
+      // form prefilled with the Telegram name exactly like a first launch.
+      localStorage.clear();
+      setUser(null);
+      setRegistrationForm({ fullName: composeFullName(telegramUser), phone: "" });
+      setRegistrationError("");
+    };
 
     fetch(`${apiUrl}/readers/by-chat/${chatId}`, {
       headers: { Accept: "application/json" },
@@ -200,13 +211,13 @@ export function UserProvider({ children }) {
       .then(async (res) => {
         if (cancelled) return;
         if (res.status === 404) {
-          localStorage.clear();
+          resetForFreshRegistration();
           return;
         }
         if (!res.ok) return;
         const reader = await res.json().catch(() => null);
         if (!reader) {
-          localStorage.clear();
+          resetForFreshRegistration();
         }
       })
       .catch(() => {});
@@ -214,7 +225,7 @@ export function UserProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [apiUrl, telegramUser?.id]);
+  }, [apiUrl, telegramUser]);
 
   // A chat id the registration missed (it was still loading, or the account
   // was made outside Telegram) is attached silently on the first launch that
