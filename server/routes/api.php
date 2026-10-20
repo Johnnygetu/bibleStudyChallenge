@@ -19,6 +19,7 @@ Route::get('test', fn () => response(['message' => 'Test'], 200));
 
 Route::apiResource('admins', AdminController::class);
 Route::get('readers/by-chat/{chatId}', [ReaderController::class, 'showByChatId']);
+Route::get('readers/early-progress', [ReaderController::class, 'earlyProgressReaders'])->name('readers.early-progress');
 Route::apiResource('readers', ReaderController::class);
 Route::get('questions/by-chapters', [QuestionController::class, 'byChapters'])->name('questions.by-chapters');
 Route::post('questions/bulk', [QuestionController::class, 'bulkStore'])->name('questions.bulk');

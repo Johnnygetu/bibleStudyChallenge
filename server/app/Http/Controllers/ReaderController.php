@@ -40,6 +40,62 @@ class ReaderController extends Controller
         return response()->json($reader);
     }
 
+    /**
+     * List readers whose progress is still between day 0 and day 3.
+     *
+     * Progress is measured the same way as the admin progress board: the
+     * reader's latest study-day position is matched to a plan order, and a
+     * plan day counts as done once even chapter of that day has been
+     * studied. Only names and phone numbers are returned.
+     */
+    public function earlyProgressReaders()
+    {
+        $plan = Plan::query()->latest('starting_day')->first();
+
+        if (! $plan) {
+            return response()->json([]);
+        }
+
+        $dayTargetOrderIds = [];
+        foreach ($plan->getSchedule() as $dayData) {
+            $dayTargetOrderIds[] = end($dayData['chapters'])['order_id'];
+        }
+
+        $earlyReaders = [];
+
+        foreach (Reader::orderBy('name')->get() as $reader) {
+            $lastStudy = $reader->studyDays()->newestPosition()->first();
+
+            $actualOrderId = 0;
+            if ($lastStudy) {
+                $lastOrder = Order::where('plan_id', $plan->id)
+                    ->where('chapter_id', $lastStudy->last_studied_chapter_id)
+                    ->first();
+
+                if ($lastOrder) {
+                    $actualOrderId = $lastOrder->id;
+                }
+            }
+
+            $daysDone = 0;
+            foreach ($dayTargetOrderIds as $targetOrderId) {
+                if ($targetOrderId > $actualOrderId) {
+                    break;
+                }
+                $daysDone++;
+            }
+
+            if ($daysDone <= 3) {
+                $earlyReaders[] = [
+                    'name' => $reader->name,
+                    'phone_number' => $reader->phone_number,
+                ];
+            }
+        }
+
+        return response()->json($earlyReaders);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
