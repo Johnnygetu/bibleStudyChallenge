@@ -7,6 +7,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "cloudmersive/cloudmersive_document_convert_api_client": "*",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0"
     },

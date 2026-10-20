@@ -46,6 +46,9 @@ Route::post('telegram/daily-readings', DailyReadingBroadcastController::class)->
 // Group reading broadcast: today's reading plan goes to the Telegram group.
 Route::post('telegram/group-reading', TelegramGroupReadingController::class)->name('telegram.group-reading');
 
+// Daily card graphic: the reading card PNG goes to the Telegram group.
+Route::post('telegram/send_graphic', [TelegramController::class, 'sendDailyCardImage'])->name('telegram.send_graphic');
+
 // Leaderboard broadcast: the standings go to the Telegram group.
 Route::post('telegram/leaderboard', TelegramLeaderboardController::class)->name('telegram.leaderboard');
 

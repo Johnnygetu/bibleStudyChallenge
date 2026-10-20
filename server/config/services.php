@@ -47,4 +47,9 @@ return [
         'broadcast_token' => env('TELEGRAM_BROADCAST_TOKEN'),
     ],
 
+    // HTML-to-PNG reading card conversion (free tier of Cloudmersive).
+    'cloudmersive' => [
+        'api_key' => env('CLOUDMERSIVE_API_KEY'),
+    ],
+
 ];
