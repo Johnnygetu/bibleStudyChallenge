@@ -16,6 +16,7 @@ return new class extends Migration
             // type — a plain foreignId() (bigint) fails errno 150 at MySQL.
             $table->uuid('post_id');
             $table->foreignId('reader_id');
+            $table->timestamps();
             $table->foreign('post_id')->references('id')->on('posts')->cascadeOnDelete();
             $table->foreign('reader_id')->references('id')->on('readers')->cascadeOnDelete();
             $table->unique(['post_id', 'reader_id']);

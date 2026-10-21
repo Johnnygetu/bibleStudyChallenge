@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Post extends Model
 {
@@ -22,5 +23,13 @@ class Post extends Model
     public function reader(): BelongsTo
     {
         return $this->belongsTo(Reader::class, 'readerId');
+    }
+
+    /**
+     * Likes on this post, one row per reader per post.
+     */
+    public function likes(): HasMany
+    {
+        return $this->hasMany(PostLike::class, 'post_id');
     }
 }

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useGeneralContext } from "@/context/GeneralContext";
+import { useUserContext } from "@/context/UserContext";
 import { DUMMY_POSTS } from "@/lib/dummyPosts";
 import { getApiErrorMessage, readJsonResponse } from "@/lib/api";
 
@@ -30,6 +31,7 @@ function saveLikedIds(ids) {
 
 export function PostsProvider({ children }) {
   const { apiUrl } = useGeneralContext();
+  const { user } = useUserContext();
 
   const [posts, setPosts] = useState(DUMMY_POSTS);
   const [loading, setLoading] = useState(true);
@@ -54,6 +56,7 @@ export function PostsProvider({ children }) {
     const id = row?.id ?? `fallback-${index}`;
     return {
       id,
+      readerId: row?.readerId ?? null,
       name: row?.readerName ?? "",
       time: toTimeLabel(row?.createdAt),
       text: row?.postContent ?? "",
@@ -130,6 +133,29 @@ export function PostsProvider({ children }) {
     });
   }, []);
 
+  // Removes the reader's own note from the server and the feed. Optimistic:
+  // the row vanishes right away and only returns if the server refuses.
+  const deletePost = useCallback(async (id) => {
+    const readerId = user?.id;
+    if (!apiUrl || readerId == null) return;
+    setPosts((prev) => prev.filter((post) => post.id !== id));
+    try {
+      const res = await fetch(`${apiUrl}/posts/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ readerId: Number(readerId) }),
+      });
+      if (!res.ok) {
+        await reload();
+      }
+    } catch {
+      await reload();
+    }
+  }, [apiUrl, user, reload]);
+
   const value = {
     posts,
     loading,
@@ -139,6 +165,7 @@ export function PostsProvider({ children }) {
     reload,
     likedIds,
     toggleLike,
+    deletePost,
   };
 
   return <PostsContext.Provider value={value}>{children}</PostsContext.Provider>;

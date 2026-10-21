@@ -1,6 +1,7 @@
-import { Heart, MessageSquare, RefreshCw } from "lucide-react";
+import { Heart, MessageSquare, RefreshCw, Trash2 } from "lucide-react";
 import { ApiErrorMessage, Avatar } from "@/components/ui";
 import { usePostsContext } from "@/context/PostsContext";
+import { useUserContext } from "@/context/UserContext";
 import ayatLogo from "@/assets/ayat-logo.png";
 import "./CommunityScreen.css";
 
@@ -9,7 +10,11 @@ import "./CommunityScreen.css";
 // Keep the "Coming soon" placeholder commented out below — it may be needed
 // if the community feature is ever disabled again.
 export function CommunityScreen() {
-  const { posts, loading, error, isFallback, likedIds, toggleLike, reload } = usePostsContext();
+  const { posts, loading, error, isFallback, likedIds, toggleLike, deletePost, reload } =
+    usePostsContext();
+  const { user } = useUserContext();
+  // Only the signed-in reader may remove their own note.
+  const myReaderId = user?.id != null ? Number(user.id) : null;
 
   const isRefreshing = loading;
 
@@ -82,7 +87,20 @@ export function CommunityScreen() {
                 <div className="community-post__body">
                   <div className="community-post__meta">
                     <span className="community-post__name">{displayName}</span>
-                    <span className="community-post__time">{post.time}</span>
+                    <div className="community-post__meta-right">
+                      {post.readerId != null && post.readerId === myReaderId && (
+                        <button
+                          type="button"
+                          className="community-post__delete"
+                          aria-label="Delete my note"
+                          title="Delete my note"
+                          onClick={() => deletePost(post.id)}
+                        >
+                          <Trash2 className="community-post__delete-icon" />
+                        </button>
+                      )}
+                      <span className="community-post__time">{post.time}</span>
+                    </div>
                   </div>
                   <p className="community-post__text">{post.text}</p>
                   <button

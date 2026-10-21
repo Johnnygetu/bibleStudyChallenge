@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Post;
+use App\Models\PostLike;
 use App\Models\Reader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -24,6 +26,7 @@ class PostsApiTest extends TestCase
 
         $response->assertStatus(201)
             ->assertJson([
+                'readerId' => $reader->id,
                 'readerName' => 'Jane Doe',
                 'postContent' => 'Day 12 finished! Nehemiah is a joy to read.',
                 'likesCount' => 0,
@@ -79,10 +82,74 @@ class PostsApiTest extends TestCase
 
         $feed = $this->getJson('/api/posts')
             ->assertStatus(200)
-            ->assertJsonStructure(['data' => [['id', 'readerName', 'postContent', 'createdAt', 'likesCount']]])
+            ->assertJsonStructure(['data' => [['id', 'readerId', 'readerName', 'postContent', 'createdAt', 'likesCount']]])
             ->json('data');
 
         $this->assertSame([$second, $first], array_map(fn ($row) => $row['id'], $feed));
         $this->assertSame('Jane Doe', $feed[0]['readerName']);
+    }
+
+    public function test_index_counts_the_likes_stored_for_each_post(): void
+    {
+        $author = Reader::create([
+            'name' => 'Author Reader',
+            'phone_number' => '+251911111111',
+        ]);
+        $liker = Reader::create([
+            'name' => 'Liker Reader',
+            'phone_number' => '+251922222222',
+        ]);
+
+        $post = $this->postJson('/api/posts', [
+            'readerId' => $author->id,
+            'postContent' => 'A note that will collect likes.',
+        ])->assertStatus(201)->json('id');
+
+        $empty = $this->postJson('/api/posts', [
+            'readerId' => $author->id,
+            'postContent' => 'A note nobody liked yet.',
+        ])->assertStatus(201)->json('id');
+
+        // Two likes on the first post — the unique index keeps a single
+        // reader from liking the same post twice.
+        PostLike::create(['post_id' => $post, 'reader_id' => $liker->id]);
+        PostLike::create(['post_id' => $post, 'reader_id' => $author->id]);
+
+        $feed = $this->getJson('/api/posts')->json('data');
+        $counts = collect($feed)->keyBy('id')->map(fn ($row) => $row['likesCount']);
+
+        $this->assertSame(2, $counts[$post]);
+        $this->assertSame(0, $counts[$empty]);
+    }
+
+    public function test_deletes_a_post_for_its_author_only(): void
+    {
+        $author = Reader::create([
+            'name' => 'Author Reader',
+            'phone_number' => '+251911111111',
+        ]);
+        $other = Reader::create([
+            'name' => 'Other Reader',
+            'phone_number' => '+251922222222',
+        ]);
+
+        $post = $this->postJson('/api/posts', [
+            'readerId' => $author->id,
+            'postContent' => 'A note its author will delete.',
+        ])->assertStatus(201)->json('id');
+
+        // Another reader cannot remove someone else's note.
+        $this->deleteJson("/api/posts/{$post}", [
+            'readerId' => $other->id,
+        ])->assertStatus(403);
+
+        $this->assertDatabaseHas('posts', ['id' => $post]);
+
+        // The author can, and the row goes away.
+        $this->deleteJson("/api/posts/{$post}", [
+            'readerId' => $author->id,
+        ])->assertStatus(204);
+
+        $this->assertDatabaseMissing('posts', ['id' => $post]);
     }
 }
