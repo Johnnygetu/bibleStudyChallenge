@@ -7,6 +7,7 @@ use App\Http\Controllers\GroupController;
 use App\Http\Controllers\InactiveReaderReminderController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\PlanController;
+use App\Http\Controllers\PostsController;
 use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\ReaderController;
@@ -30,6 +31,8 @@ Route::post('groups/{group}/swap', [GroupController::class, 'swapMember'])->name
 Route::put('groups/{group}/members/{reader}/leader', [GroupController::class, 'setLeader'])->name('groups.set-leader');
 Route::get('leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard.index');
 Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
+Route::get('posts', [PostsController::class, 'index'])->name('posts.index');
+Route::post('posts', [PostsController::class, 'store'])->name('posts.store');
 Route::get('progress', [ProgressController::class, 'index'])->name('progress.index');
 Route::get('readers/{reader}/plans/{plan}/daily-readings', [ReaderController::class, 'dailyReadings']);
 Route::get('readers/{reader}/plans/{plan}/lag-status', [ReaderController::class, 'lagStatus']);

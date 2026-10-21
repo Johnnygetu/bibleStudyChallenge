@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { BookOpen, Trophy } from "lucide-react";
+import { BookOpen, Trophy, MessageSquare } from "lucide-react";
 
 // Owns the bottom-nav tab, so App and the screens stay free of state. Each tab
 // carries its own select handler and active flag, which lets the nav button
@@ -26,6 +26,13 @@ export function NavigationProvider({ children }) {
         icon: Trophy,
         isActive: activeTab === "leaderboard",
         onSelect: () => setActiveTab("leaderboard"),
+      },
+      {
+        id: "community",
+        label: "Community",
+        icon: MessageSquare,
+        isActive: activeTab === "community",
+        onSelect: () => setActiveTab("community"),
       },
     ],
     [activeTab]

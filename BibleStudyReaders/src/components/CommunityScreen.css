@@ -1,0 +1,214 @@
+/* Community screen overrides shared .screen */
+
+.community {
+  gap: 1.25rem;
+  animation: fadeIn 0.3s ease-out;
+  align-items: stretch;
+  text-align: left;
+}
+
+.community__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.community__header-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--primary-400);
+}
+
+.community__header-title {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--ink-100);
+}
+
+.community__preview-note {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--ink-500);
+}
+
+/* Composer (non-functional placeholder) */
+
+.community-composer {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.75rem;
+  background-color: var(--ink-850);
+  border: 1px solid rgba(229, 229, 229, 0.3);
+}
+
+.community-composer__input {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--ink-500);
+  user-select: none;
+}
+
+/* Feed */
+
+.community-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.community-post {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background-color: var(--ink-850);
+  border: 1px solid rgba(229, 229, 229, 0.3);
+}
+
+.community-post__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.community-post__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.community-post__name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-200);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-post__time {
+  font-size: 0.6875rem;
+  color: var(--ink-500);
+  flex-shrink: 0;
+}
+
+.community-post__text {
+  font-size: 0.875rem;
+  color: var(--ink-300);
+  margin-top: 0.25rem;
+  line-height: 1.45;
+}
+
+/* Like button (dummy interactions until the backend exists) */
+
+.community-post__like {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--ink-500);
+  font-variant-numeric: tabular-nums;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 0.5rem;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.community-post__like:hover {
+  color: var(--ink-300);
+}
+
+.community-post__like--liked {
+  color: var(--primary-400);
+}
+
+.community-post__like-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: rgba(2, 41, 66, 0.5);
+}
+
+.community-post__like--liked .community-post__like-icon {
+  color: var(--primary-400);
+}
+
+/* Fixed refresh button (dummy refresh until the backend exists) */
+
+.community-refresh {
+  position: fixed;
+  right: 2.25rem;
+  bottom: 5.25rem;
+  z-index: 40;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--ink-850);
+  border: 1px solid rgba(229, 229, 229, 0.5);
+  box-shadow: 0 4px 12px rgba(26, 26, 26, 0.1);
+  color: var(--primary-400);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.community-refresh:active {
+  transform: scale(0.92);
+}
+
+.community-refresh--spinning .community-refresh__icon {
+  animation: community-refresh-spin 0.6s linear infinite;
+}
+
+.community-refresh__icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--primary-400);
+  pointer-events: none;
+}
+
+@keyframes community-refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Keep the "Coming soon" styles for the placeholder kept commented out in the
+screen markup */
+
+.community-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 4rem;
+  padding-bottom: 6rem;
+  text-align: center;
+}
+
+.community-empty__icon {
+  width: 3rem;
+  height: 3rem;
+  color: rgba(2, 41, 66, 0.4);
+  margin: 0 auto 1rem;
+}
+
+.community-empty__title {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  color: var(--ink-100);
+  margin-bottom: 0.5rem;
+}
+
+.community-empty__text {
+  font-size: 0.875rem;
+  color: var(--ink-400);
+}

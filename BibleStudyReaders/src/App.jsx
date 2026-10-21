@@ -1,10 +1,12 @@
 import { TodayScreen } from "./components/TodayScreen.jsx";
 import { LeaderboardScreen } from "./components/LeaderboardScreen.jsx";
+import { CommunityScreen } from "./components/CommunityScreen.jsx";
 import { NavigationProvider, useNavigationContext } from "./context/NavigationContext.jsx";
 import { GeneralProvider } from "./context/GeneralContext.jsx";
 import { UserProvider, useUserContext } from "./context/UserContext.jsx";
 import { DateOverrideProvider } from "./context/DateOverrideContext.jsx";
 import { LeaderboardProvider } from "./context/LeaderboardContext.jsx";
+import { PostsProvider } from "./context/PostsContext.jsx";
 import { ReadingProvider } from "./context/ReadingContext.jsx";
 import { QuizProvider } from "./context/QuizContext.jsx";
 import { RegistrationModal } from "./components/RegistrationModal.jsx";
@@ -38,6 +40,7 @@ function AppContent() {
       <main className="app-main">
         {activeTab === "today" && <TodayScreen />}
         {activeTab === "leaderboard" && <LeaderboardScreen />}
+        {activeTab === "community" && <CommunityScreen />}
       </main>
 
       {/* <TestDateBar /> */}
@@ -71,11 +74,13 @@ function App() {
         <GeneralProvider>
           <UserProvider>
             <LeaderboardProvider>
-              <ReadingProvider>
-                <QuizProvider>
-                  <AppContent />
-                </QuizProvider>
-              </ReadingProvider>
+              <PostsProvider>
+                <ReadingProvider>
+                  <QuizProvider>
+                    <AppContent />
+                  </QuizProvider>
+                </ReadingProvider>
+              </PostsProvider>
             </LeaderboardProvider>
           </UserProvider>
         </GeneralProvider>

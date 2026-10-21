@@ -11,8 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('study_days', function (Blueprint $table) {
-            //
+        Schema::create('posts', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->timestamps();
+            $table->foreignId('readerId')->constrained('readers');
+            $table->longText('postContent');
+
         });
     }
 
@@ -21,8 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('study_days', function (Blueprint $table) {
-            //
-        });
+        Schema::dropIfExists('posts');
     }
 };
