@@ -1,19 +1,43 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useGeneralContext } from "@/context/GeneralContext";
 import { useUserContext } from "@/context/UserContext";
-import { DUMMY_POSTS } from "@/lib/dummyPosts";
 import { getApiErrorMessage, readJsonResponse } from "@/lib/api";
 
 // Owns the reader-facing community feed for the Community screen. The server
 // contract (provisional, aligned with the posts migration) is a list of:
 //   { id, readerId, readerName, postContent, createdAt, likesCount, likedByMe }
-// mapped here into the shape the screen renders. Until the backend exposes
-// GET /posts, every failed fetch falls back to the hardcoded dummy posts so
-// the screen keeps working in the meantime — `isFallback` tells the screen.
+// mapped here into the shape the screen renders. A failed fetch leaves the
+// feed empty and surfaces a custom error message — no dummy data anywhere.
 // Like state is server-owned: the feed passes the signed-in reader's id so
 // every row carries likedByMe, and taps reconcile with the like endpoint's
 // response — no local persistence, so nothing goes stale between devices.
 export const PostsContext = createContext(null);
+
+// Custom, reader-friendly wording for community feed failures. Network
+// drops, auth walls, missing endpoints and server hiccups each get their
+// own message instead of one generic string.
+function getCommunityErrorMessage(err, apiUrl) {
+  if (!apiUrl) {
+    return "Community notes aren't available right now — the app couldn't reach the server. Please try again later.";
+  }
+  if (err instanceof TypeError) {
+    return "We couldn't load community notes. Check your internet connection and try again.";
+  }
+  switch (err?.status) {
+    case 401:
+    case 403:
+      return "You need to be signed in to see community notes. Please sign in and try again.";
+    case 404:
+      return "Community notes aren't available yet. Please check back soon.";
+    case 429:
+      return "Community notes are being refreshed too quickly. Please wait a moment and try again.";
+    default:
+      if (err?.status >= 500) {
+        return "The community notes service hit a snag on our side. Please try again in a little while.";
+      }
+      return getApiErrorMessage(err, apiUrl);
+  }
+}
 
 // Timestamps from the server become short relative labels for the feed:
 // "now" / "12m" / "5h" / "2d", then a plain date for anything older.
@@ -32,9 +56,8 @@ export function PostsProvider({ children }) {
   const { apiUrl } = useGeneralContext();
   const { user } = useUserContext();
 
-  const [posts, setPosts] = useState(DUMMY_POSTS);
+  const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isFallback, setIsFallback] = useState(true);
   const [error, setError] = useState(null);
 
   // The like state used to persist in localStorage; the server owns it now,
@@ -66,8 +89,8 @@ export function PostsProvider({ children }) {
     setError(null);
 
     if (!apiUrl) {
-      setPosts(DUMMY_POSTS);
-      setIsFallback(true);
+      setPosts([]);
+      setError(getCommunityErrorMessage(null, apiUrl));
       setLoading(false);
       return;
     }
@@ -86,14 +109,13 @@ export function PostsProvider({ children }) {
       }
 
       setPosts(list.map(toPost));
-      setIsFallback(false);
+      setError(null);
     } catch (err) {
       console.error("Failed to load community posts:", err);
-      // The community feature is not live yet — keep the screen useful with
-      // the dummy feed instead of an empty error page.
-      setPosts(DUMMY_POSTS);
-      setIsFallback(true);
-      setError(getApiErrorMessage(err, apiUrl));
+      // No fallback feed: the list stays empty and the custom error message
+      // (with a retry button on the screen) tells the reader what happened.
+      setPosts([]);
+      setError(getCommunityErrorMessage(err, apiUrl));
     } finally {
       setLoading(false);
     }
@@ -181,7 +203,7 @@ export function PostsProvider({ children }) {
 
   // Posts a new note through POST /posts. Returns true on success so the
   // composer knows it can clear the draft; the 201 row lands at the top of
-  // the feed (or alone, should the screen still be on the fallback samples).
+  // the feed.
   const createPost = useCallback(
     async (postContent) => {
       const readerId = user?.id != null ? Number(user.id) : null;
@@ -200,26 +222,20 @@ export function PostsProvider({ children }) {
         const row = await readJsonResponse(res, "Community note");
         const fresh = toPost(row);
         setError(null);
-        if (isFallback) {
-          setPosts([fresh]);
-          setIsFallback(false);
-        } else {
-          setPosts((prev) => [fresh, ...prev]);
-        }
+        setPosts((prev) => [fresh, ...prev]);
         return true;
       } catch (err) {
-        setError(getApiErrorMessage(err, apiUrl));
+        setError(getCommunityErrorMessage(err, apiUrl));
         return false;
       }
     },
-    [apiUrl, user, isFallback, toPost],
+    [apiUrl, user, toPost],
   );
 
   const value = {
     posts,
     loading,
     error,
-    isFallback,
     reload,
     createPost,
     toggleLike,

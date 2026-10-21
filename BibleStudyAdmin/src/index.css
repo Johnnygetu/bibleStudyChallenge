@@ -602,6 +602,16 @@ ol {
   width: 100%;
 }
 
+/* Dashboard: full-width shortcut under the KPI stat cards. */
+.dashboard-posts-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem;
+  font-size: 0.9375rem;
+}
+
 .btn-save {
   margin-top: 1.5rem;
   padding-top: 0.875rem;

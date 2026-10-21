@@ -1,4 +1,4 @@
-import { Users, TrendingUp, HelpCircle, Flame, AlertTriangle, BookOpen, UsersRound } from 'lucide-react';
+import { Users, TrendingUp, HelpCircle, Flame, AlertTriangle, BookOpen, UsersRound, MessageSquare } from 'lucide-react';
 import { Avatar, Skeleton, ReaderSkeletonList, ErrorState } from '@/components/ui';
 import { useDashboardContext } from '@/context/DashboardContext';
 
@@ -93,6 +93,15 @@ export default function Dashboard({ onNavigate }) {
           );
         })}
       </div>
+
+      {/* Posts shortcut: opens the community notes manager */}
+      <button
+        onClick={() => onNavigate?.('posts')}
+        className="btn-primary btn-block dashboard-posts-btn"
+      >
+        <MessageSquare className="icon-20" strokeWidth={2.2} />
+        Posts
+      </button>
 
       {/* On track vs falling behind */}
       <div className="grid-2">

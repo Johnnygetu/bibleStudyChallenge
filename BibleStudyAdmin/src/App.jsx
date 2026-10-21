@@ -7,6 +7,7 @@ import Groups from '@/pages/Groups.jsx';
 import Progress from '@/pages/Progress.jsx';
 import Quizzes from '@/pages/Quizzes.jsx';
 import Leaderboard from '@/pages/Leaderboard.jsx';
+import Posts from '@/pages/Posts.jsx';
 import AppProviders from '@/context/AppProviders';
 
 const tabs = [
@@ -57,6 +58,7 @@ export default function App() {
           {activeTab === 'progress' && <Progress />}
           {activeTab === 'quizzes' && <Quizzes />}
           {activeTab === 'leaderboard' && <Leaderboard />}
+          {activeTab === 'posts' && <Posts onNavigate={setActiveTab} />}
         </main>
 
         {/* Bottom Navigation */}

@@ -6,8 +6,9 @@ import { useUserContext } from "@/context/UserContext";
 import ayatLogo from "@/assets/ayat-logo.png";
 import "./CommunityScreen.css";
 
-// The feed is owned by PostsContext: real rows from GET /posts when the
-// endpoint answers, or the dummy feed with `isFallback` set until it does.
+// The feed is owned by PostsContext: real rows from GET /posts, or a custom
+// error message with a retry button when the request fails — there is no
+// fallback to dummy data anymore.
 // Keep the "Coming soon" placeholder commented out below — it may be needed
 // if the community feature is ever disabled again.
 const MAX_NOTE_WORDS = 200;
@@ -19,7 +20,7 @@ function capToWords(value) {
 }
 
 export function CommunityScreen() {
-  const { posts, loading, error, isFallback, createPost, toggleLike, deletePost, reload } =
+  const { posts, loading, error, createPost, toggleLike, deletePost, reload } =
     usePostsContext();
   const { user } = useUserContext();
   // Only the signed-in reader may remove their own note.
@@ -78,13 +79,6 @@ export function CommunityScreen() {
       <div className="community__header">
         <h1 className="community__header-title">Community Notes</h1>
       </div>
-
-      {/* Preview banner so nobody mistakes the dummy data for real posts */}
-      {isFallback && !loading && (
-        <p className="community__preview-note">
-          Preview — sample posts until the community feature launches.
-        </p>
-      )}
 
       {/* Composer: type a note, then share it with the small button below.
           Hidden while the feed loads and for the rest of the day once the
@@ -186,8 +180,7 @@ export function CommunityScreen() {
         </div>
       )}
 
-      {/* Fixed refresh button: real refetch once the API answers, dummy
-      shuffle while the feed is the fallback */}
+      {/* Fixed refresh button: refetches the real feed */}
       <button
         type="button"
         className={`community-refresh${isRefreshing ? " community-refresh--spinning" : ""}`}

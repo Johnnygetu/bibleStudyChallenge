@@ -157,6 +157,36 @@ class PostsApiTest extends TestCase
         $this->assertNotContains($stale, $ids);
     }
 
+    public function test_admin_deletes_any_post_with_a_required_reason(): void
+    {
+        $author = Reader::create([
+            'name' => 'Author Reader',
+            'phone_number' => '+251911111111',
+        ]);
+
+        $post = $this->postJson('/api/posts', [
+            'readerId' => $author->id,
+            'postContent' => 'A note the admin panel will remove.',
+        ])->assertStatus(201)->json('id');
+
+        // A reason must ride along, on an as-remove-any basis.
+        $this->deleteJson("/api/admin/posts/{$post}")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('reason');
+
+        $this->deleteJson("/api/admin/posts/{$post}", [
+            'reason' => str_repeat('x', 1001),
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('reason');
+
+        // With a reason any note goes — no author check, unlike the reader route.
+        $this->deleteJson("/api/admin/posts/{$post}", [
+            'reason' => 'Inappropriate language.',
+        ])->assertStatus(204);
+
+        $this->assertDatabaseMissing('posts', ['id' => $post]);
+    }
+
     public function test_deletes_a_post_for_its_author_only(): void
     {
         $author = Reader::create([

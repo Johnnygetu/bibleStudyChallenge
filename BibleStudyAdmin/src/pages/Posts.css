@@ -1,0 +1,127 @@
+/* Posts placeholder page */
+
+/* Round ghost back button in the page header — Posts isn't a bottom-nav tab,
+   so readers of the screen need a way back to Home. */
+.posts-back {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--ink-400);
+  transition: all 0.15s;
+}
+
+.posts-back:hover {
+  background: var(--ink-900);
+  color: var(--ink-100);
+}
+
+.posts-back:active {
+  transform: scale(0.95);
+}
+
+/* Invisible spacer mirroring the back button's width so the title centers. */
+.posts-back-spacer {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+/* "Last 24 hours" window label under the header. */
+.posts-window {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-400);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Name + relative time on one line above the note text. */
+.posts-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.posts-time {
+  font-size: 0.75rem;
+  color: var(--ink-500);
+}
+
+/* The note text sits under the title row, wrapping freely. */
+.posts-text {
+  font-size: 0.875rem;
+  color: var(--ink-200);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Like count pill on the row's right edge. */
+.posts-likes {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Right-edge group: like count pill + trash button. */
+.posts-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* Round ghost delete button next to the like pill. */
+.posts-delete {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--ink-400);
+  transition: all 0.15s;
+}
+
+.posts-delete:hover {
+  background: var(--ink-900);
+  color: var(--danger-500);
+}
+
+.posts-delete:active {
+  transform: scale(0.95);
+}
+
+/* Warning line inside the delete modal, under the title. */
+.delete-hint {
+  font-size: 0.8125rem;
+  color: var(--ink-300);
+  margin-bottom: 1rem;
+}
+
+/* Danger confirm button for the delete modal — the app has no global one. */
+.btn-danger {
+  background: var(--danger-500);
+  color: #ffffff;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.75rem;
+  transition: all 0.15s;
+}
+
+.btn-danger:hover {
+  background: var(--danger-600);
+}
+
+.btn-danger:active {
+  transform: scale(0.98);
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

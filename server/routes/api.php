@@ -35,6 +35,8 @@ Route::get('posts', [PostsController::class, 'index'])->name('posts.index');
 Route::post('posts', [PostsController::class, 'store'])->name('posts.store');
 Route::post('posts/{post}/like', [PostsController::class, 'like'])->name('posts.like');
 Route::delete('posts/{post}', [PostsController::class, 'destroy'])->name('posts.destroy');
+// Admin removal: same note row, but any note goes and a reason is required.
+Route::delete('admin/posts/{post}', [PostsController::class, 'adminDestroy'])->name('posts.admin-destroy');
 Route::get('progress', [ProgressController::class, 'index'])->name('progress.index');
 Route::get('readers/{reader}/plans/{plan}/daily-readings', [ReaderController::class, 'dailyReadings']);
 Route::get('readers/{reader}/plans/{plan}/lag-status', [ReaderController::class, 'lagStatus']);

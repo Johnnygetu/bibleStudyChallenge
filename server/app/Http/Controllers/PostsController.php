@@ -113,4 +113,21 @@ class PostsController extends Controller
 
         return response()->noContent();
     }
+
+    /**
+     * Admin removal through the admin panel: any note goes, author irrelevant.
+     * The request must carry a reason for taking the note down. The reason is
+     * validated but not stored yet — what happens with it (audit trail,
+     * logging, notifying the reader) is a pending decision.
+     */
+    public function adminDestroy(Request $request, Post $post)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        $post->delete();
+
+        return response()->noContent();
+    }
 }

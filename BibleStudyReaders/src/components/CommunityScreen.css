@@ -28,12 +28,6 @@
   color: var(--ink-100);
 }
 
-.community__preview-note {
-  text-align: center;
-  font-size: 0.75rem;
-  color: var(--ink-500);
-}
-
 /* Composer: live input + small share button below */
 
 .community-composer {

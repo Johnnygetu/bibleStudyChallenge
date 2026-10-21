@@ -4,7 +4,12 @@
 export async function readJsonResponse(response, resourceName) {
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(payload?.message || `${resourceName} request failed (HTTP ${response.status}).`);
+    const error = new Error(
+      payload?.message || `${resourceName} request failed (HTTP ${response.status}).`
+    );
+    // Callers branch on this to craft friendlier, context-specific wording.
+    error.status = response.status;
+    throw error;
   }
   return payload;
 }

@@ -4,6 +4,7 @@ import { DashboardProvider } from '@/context/DashboardContext';
 import { ProgressProvider } from '@/context/ProgressContext';
 import { LeaderboardProvider } from '@/context/LeaderboardContext';
 import { GroupsProvider } from '@/context/GroupsContext';
+import { PostsProvider } from '@/context/PostsContext';
 
 // Composes every page context so App can wrap the shell once. All data
 // fetching, derived stats, and mutations live in these providers.
@@ -17,7 +18,9 @@ export default function AppProviders({ children }) {
         <DashboardProvider>
           <ProgressProvider>
             <LeaderboardProvider>
-              <GroupsProvider>{children}</GroupsProvider>
+              <GroupsProvider>
+                <PostsProvider>{children}</PostsProvider>
+              </GroupsProvider>
             </LeaderboardProvider>
           </ProgressProvider>
         </DashboardProvider>
