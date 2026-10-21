@@ -34,7 +34,7 @@
   color: var(--ink-500);
 }
 
-/* Composer (non-functional placeholder) */
+/* Composer: live input + small share button below */
 
 .community-composer {
   display: flex;
@@ -48,9 +48,44 @@
 
 .community-composer__input {
   flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  padding: 0.25rem 0;
   font-size: 0.875rem;
+  color: var(--primary-500);
+}
+
+.community-composer__input::placeholder {
   color: var(--ink-500);
-  user-select: none;
+}
+
+.community-composer__input:disabled {
+  opacity: 0.6;
+}
+
+.community-composer__share {
+  align-self: flex-start;
+  margin-top: 0.4rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: none;
+  background-color: var(--primary-500);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.community-composer__share:hover:not(:disabled) {
+  background-color: var(--primary-400);
+}
+
+.community-composer__share:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 /* Feed */

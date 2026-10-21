@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('post_likes', function (Blueprint $table) {
             // posts.id is a UUID string key, so the foreign key must match its
             // type — a plain foreignId() (bigint) fails errno 150 at MySQL.
+            $table->id();
             $table->uuid('post_id');
             $table->foreignId('reader_id');
             $table->timestamps();

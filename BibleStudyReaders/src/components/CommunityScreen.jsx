@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Heart, MessageSquare, RefreshCw, Trash2 } from "lucide-react";
 import { ApiErrorMessage, Avatar } from "@/components/ui";
 import { usePostsContext } from "@/context/PostsContext";
@@ -9,14 +10,44 @@ import "./CommunityScreen.css";
 // endpoint answers, or the dummy feed with `isFallback` set until it does.
 // Keep the "Coming soon" placeholder commented out below — it may be needed
 // if the community feature is ever disabled again.
+const MAX_NOTE_WORDS = 200;
+
+// Caps a draft at the word limit — anything past word 200 is dropped.
+function capToWords(value) {
+  const words = value.split(/\s+/).filter(Boolean);
+  return words.length <= MAX_NOTE_WORDS ? value : words.slice(0, MAX_NOTE_WORDS).join(" ");
+}
+
 export function CommunityScreen() {
-  const { posts, loading, error, isFallback, likedIds, toggleLike, deletePost, reload } =
+  const { posts, loading, error, isFallback, createPost, toggleLike, deletePost, reload } =
     usePostsContext();
   const { user } = useUserContext();
   // Only the signed-in reader may remove their own note.
   const myReaderId = user?.id != null ? Number(user.id) : null;
 
+  const [draft, setDraft] = useState("");
+  const [posting, setPosting] = useState(false);
+  const canShare = draft.trim().length > 0 && !posting;
+
+  const handleShare = async () => {
+    if (!canShare) return;
+    setPosting(true);
+    const shared = await createPost(draft);
+    setPosting(false);
+    if (shared) {
+      setDraft("");
+    }
+  };
+
   const isRefreshing = loading;
+  // One note per day: the composer hides while the feed loads and once the
+  // signed-in reader already has a note dated today. (Dates ride on every
+  // row; the calendar day of the server timestamp is the "posted" day.)
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const hasPostedToday = posts.some(
+    (post) => post.readerId === myReaderId && post.createdAt?.startsWith(todayKey),
+  );
+  const showComposer = !loading && !hasPostedToday;
 
   return (
     <div className="screen community animate-fade-in">
@@ -55,11 +86,42 @@ export function CommunityScreen() {
         </p>
       )}
 
-      {/* Composer (non-functional placeholder) */}
-      <div className="community-composer">
-        <Avatar name="Yishak" size={32} />
-        <span className="community-composer__input">Share a note…</span>
-      </div>
+      {/* Composer: type a note, then share it with the small button below.
+          Hidden while the feed loads and for the rest of the day once the
+          reader has shared today's note. */}
+      {showComposer && (
+        <>
+          <div className="community-composer">
+            <Avatar name={user?.fullName || "You"} size={32} />
+            {/* Char backstop just so a giant paste can't lag the input
+                before capToWords trims it */}
+            <input
+              className="community-composer__input"
+              type="text"
+              placeholder="Share a note…"
+              aria-label="Share a note"
+              maxLength={200}
+              disabled={posting}
+              value={draft}
+              onChange={(event) => setDraft(capToWords(event.target.value))}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  handleShare();
+                }
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            className="community-composer__share"
+            disabled={!canShare}
+            onClick={handleShare}
+          >
+            {posting ? "Sharing…" : "Share note"}
+          </button>
+        </>
+      )}
 
       {error && <ApiErrorMessage message={error} onRetry={reload} />}
 
@@ -70,7 +132,7 @@ export function CommunityScreen() {
       ) : posts.length === 0 ? (
         <div className="community-empty">
           <MessageSquare className="community-empty__icon" />
-          <p className="community-empty__title">No notes yet</p>
+          <p className="community-empty__title">No notes today</p>
           <p className="community-empty__text">
             Be the first to share a note with the community!
           </p>
@@ -79,7 +141,8 @@ export function CommunityScreen() {
         // Feed
         <div className="community-feed">
           {posts.map((post) => {
-            const isLiked = likedIds.has(post.id);
+            // The heart state is server-owned: likedByMe rides on the row.
+            const isLiked = post.likedByMe;
             const displayName = post.name?.trim() || "A reader";
             return (
               <article key={post.id} className="community-post">
@@ -114,7 +177,7 @@ export function CommunityScreen() {
                       className="community-post__like-icon"
                       fill={isLiked ? "currentColor" : "none"}
                     />
-                    {post.likes + (isLiked ? 1 : 0)}
+                    {post.likes}
                   </button>
                 </div>
               </article>

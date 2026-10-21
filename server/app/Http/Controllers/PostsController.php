@@ -8,13 +8,24 @@ use Illuminate\Http\Request;
 class PostsController extends Controller
 {
     /**
-     * Community feed: every post, newest first, shaped for the readers app.
-     * Likes are counted straight off the post_likes table.
+     * Community feed: only notes posted in the last 24 hours, newest first,
+     * shaped for the readers app. Likes are counted straight off the
+     * post_likes table. When the app passes its signed-in readerId, each row
+     * also reports whether that reader is the one who likes it, so the heart
+     * state is server-owned.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $data = $request->validate([
+            'readerId' => 'nullable|integer|exists:readers,id',
+        ]);
+
+        $readerId = (int) ($data['readerId'] ?? 0);
+
         $posts = Post::with('reader')
             ->withCount('likes')
+            ->withCount(['likes as likedByMe' => fn ($query) => $query->where('reader_id', $readerId)])
+            ->where('created_at', '>=', now()->subDay())
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (Post $post) => $this->toFeedShaped($post));
@@ -39,13 +50,32 @@ class PostsController extends Controller
     }
 
     /**
-     * Like toggle for a single post. TODO: we'll settle the logic here —
-     * whether to mirror the post_likes table, allow one like per reader,
-     * and how to shape the response — before wiring it up.
+     * Like toggle for a single post. If the reader already likes the post
+     * the row is removed, otherwise one is created — the unique index on
+     * (post_id, reader_id) keeps a reader from liking the same post twice.
+     * The response carries the new server state so the app can swap its
+     * optimistic update for the truth.
      */
     public function like(Post $post)
     {
-        //
+        $data = request()->validate([
+            'readerId' => 'required|integer|exists:readers,id',
+        ]);
+
+        $existing = $post->likes()->where('reader_id', $data['readerId'])->first();
+
+        if ($existing !== null) {
+            $existing->delete();
+            $liked = false;
+        } else {
+            $post->likes()->create(['reader_id' => $data['readerId']]);
+            $liked = true;
+        }
+
+        return response([
+            'liked' => $liked,
+            'likesCount' => $post->likes()->count(),
+        ]);
     }
 
     /**
@@ -62,6 +92,7 @@ class PostsController extends Controller
             'postContent' => $post->postContent,
             'createdAt' => $post->created_at?->toISOString(),
             'likesCount' => (int) ($post->likes_count ?? 0),
+            'likedByMe' => (bool) ($post->likedByMe ?? false),
         ];
     }
 

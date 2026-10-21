@@ -82,7 +82,7 @@ class PostsApiTest extends TestCase
 
         $feed = $this->getJson('/api/posts')
             ->assertStatus(200)
-            ->assertJsonStructure(['data' => [['id', 'readerId', 'readerName', 'postContent', 'createdAt', 'likesCount']]])
+            ->assertJsonStructure(['data' => [['id', 'readerId', 'readerName', 'postContent', 'createdAt', 'likesCount', 'likedByMe']]])
             ->json('data');
 
         $this->assertSame([$second, $first], array_map(fn ($row) => $row['id'], $feed));
@@ -120,6 +120,41 @@ class PostsApiTest extends TestCase
 
         $this->assertSame(2, $counts[$post]);
         $this->assertSame(0, $counts[$empty]);
+
+        // Without a readerId no row can claim "liked by me".
+        $this->assertFalse((bool) collect($feed)->keyBy('id')[$post]['likedByMe']);
+
+        // With the liker's readerId only the posts they liked are flagged.
+        $likerFeed = collect($this->getJson("/api/posts?readerId={$liker->id}")->json('data'))->keyBy('id');
+        $this->assertTrue((bool) $likerFeed[$post]['likedByMe']);
+        $this->assertFalse((bool) $likerFeed[$empty]['likedByMe']);
+    }
+
+    public function test_index_only_shows_posts_from_the_last_24_hours(): void
+    {
+        $reader = Reader::create([
+            'name' => 'Jane Doe',
+            'phone_number' => '+251911111111',
+        ]);
+
+        $fresh = $this->postJson('/api/posts', [
+            'readerId' => $reader->id,
+            'postContent' => 'A fresh note from this morning.',
+        ])->assertStatus(201)->json('id');
+
+        $stale = $this->postJson('/api/posts', [
+            'readerId' => $reader->id,
+            'postContent' => 'A note from two days ago.',
+        ])->assertStatus(201)->json('id');
+
+        // Age the second note past the feed window.
+        Post::where('id', $stale)->update(['created_at' => now()->subHours(25)]);
+
+        $feed = $this->getJson('/api/posts')->json('data');
+        $ids = array_map(fn ($row) => $row['id'], $feed);
+
+        $this->assertContains($fresh, $ids);
+        $this->assertNotContains($stale, $ids);
     }
 
     public function test_deletes_a_post_for_its_author_only(): void
@@ -151,5 +186,40 @@ class PostsApiTest extends TestCase
         ])->assertStatus(204);
 
         $this->assertDatabaseMissing('posts', ['id' => $post]);
+    }
+
+    public function test_like_toggles_the_post_like_for_the_reader(): void
+    {
+        $author = Reader::create([
+            'name' => 'Author Reader',
+            'phone_number' => '+251911111111',
+        ]);
+        $liker = Reader::create([
+            'name' => 'Liker Reader',
+            'phone_number' => '+251922222222',
+        ]);
+
+        $post = $this->postJson('/api/posts', [
+            'readerId' => $author->id,
+            'postContent' => 'A note that will be liked and unliked.',
+        ])->assertStatus(201)->json('id');
+
+        // First tap adds the like.
+        $this->postJson("/api/posts/{$post}/like", [
+            'readerId' => $liker->id,
+        ])
+            ->assertStatus(200)
+            ->assertJson(['liked' => true, 'likesCount' => 1]);
+
+        $this->assertDatabaseHas('post_likes', ['post_id' => $post, 'reader_id' => $liker->id]);
+
+        // Tapping the same post by the same reader removes the like again.
+        $this->postJson("/api/posts/{$post}/like", [
+            'readerId' => $liker->id,
+        ])
+            ->assertStatus(200)
+            ->assertJson(['liked' => false, 'likesCount' => 0]);
+
+        $this->assertDatabaseMissing('post_likes', ['post_id' => $post, 'reader_id' => $liker->id]);
     }
 }
