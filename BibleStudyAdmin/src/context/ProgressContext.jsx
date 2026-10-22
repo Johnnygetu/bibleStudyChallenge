@@ -112,11 +112,35 @@ export function ProgressProvider({ children }) {
     [planId, reload],
   );
 
+  // Sets the reader's streak by hand. The server adjusts the reader's newest
+  // streak row, so daily reads keep counting from the corrected value; the
+  // value itself cannot reach past today's plan day.
+  const setStreak = useCallback(async (readerId, streak) => {
+    const response = await fetch(`${apiUrl}/readers/${readerId}/set-streak`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ streak }),
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      const firstError = payload?.errors
+        ? Object.values(payload.errors)[0]?.[0]
+        : null;
+      throw new Error(firstError ?? payload?.message ?? 'Could not update the streak.');
+    }
+
+    await reload();
+  }, [reload]);
+
   useEffect(() => {
     reload();
   }, [reload]);
 
-  const value = { data, loading, error, reload, planId, chapters, setProgress };
+  const value = { data, loading, error, reload, planId, chapters, setProgress, setStreak };
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;
 }

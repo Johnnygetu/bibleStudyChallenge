@@ -168,30 +168,20 @@ class SetReaderProgressTest extends TestCase
         $this->assertSame($orders[3]->chapter_id, $readings[0]['chapter_id']);
     }
 
-    public function test_setting_the_progress_records_the_matching_day_streak(): void
+    public function test_setting_the_progress_leaves_the_streak_untouched(): void
     {
-        // One chapter per day: the third chapter belongs to plan day 3.
         [$plan, $orders] = $this->makePlan(now()->subDays(3)->toDateString());
         $reader = $this->makeReader();
+        $reader->streaks()->create(['count' => 2]);
 
-        $response = $this->postJson("/api/readers/{$reader->id}/plans/{$plan->id}/set-progress", [
+        $this->postJson("/api/readers/{$reader->id}/plans/{$plan->id}/set-progress", [
             'order_id' => $orders[2]->id,
         ])->assertStatus(201);
 
-        $this->assertSame(3, $response->json('streak'));
-        $this->assertDatabaseHas('streaks', [
-            'reader_id' => $reader->id,
-            'count' => 3,
-        ]);
-
-        // Later progress moves the same row, so the reader continues from the
-        // corrected value.
-        $this->postJson("/api/readers/{$reader->id}/plans/{$plan->id}/set-progress", [
-            'order_id' => $orders[3]->id,
-        ])->assertStatus(201);
-
+        // Moving a reader's position is a streak decision, not a reading
+        // record: the streak only changes through Set streak or daily saves.
         $this->assertSame(1, $reader->streaks()->count());
-        $this->assertSame(4, $reader->streaks()->latest('id')->first()->count);
+        $this->assertSame(2, $reader->streaks()->latest('id')->first()->count);
     }
 
     public function test_rejects_a_chapter_beyond_todays_plan(): void

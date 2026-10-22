@@ -419,29 +419,16 @@ class ReaderController extends Controller
             ]);
         }
 
-        // The day the chosen chapter belongs to is what the reader has
-        // reached, so the streak follows the same number.
-        $dayNumber = null;
-        foreach ($plan->getSchedule() as $dayData) {
-            if (end($dayData['chapters'])['order_id'] >= $order->id) {
-                $dayNumber = $dayData['day'];
-                break;
-            }
-        }
-
         $studyDay = $reader->studyDays()->make([
             'last_studied_chapter_id' => $order->chapter_id,
         ]);
         $studyDay->created_at = today()->startOfDay()->subSecond();
         $studyDay->save();
 
-        $this->adjustStreak($reader, $dayNumber);
-
         return response([
             'message' => 'Reader progress updated.',
             'study_day' => $studyDay,
             'lag' => $plan->lagFor($reader),
-            'streak' => $dayNumber,
         ], 201);
     }
 

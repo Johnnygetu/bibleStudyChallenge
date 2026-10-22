@@ -4,14 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Plan;
 use App\Models\Reader;
-use Illuminate\Support\Carbon;
 
 class ProgressController extends Controller
 {
     /**
-     * Per-reader reading progress for the admin board. Days done/missed
-     * come from the plan's lag logic (study-day position vs schedule);
-     * streaks are runs of consecutive study days.
+     * Per-reader reading progress for the admin board. Days done/missed come
+     * from the plan's lag logic (study-day position vs schedule); the streak
+     * columns are what the `streaks` table holds — matching the reader app,
+     * so a manual adjustment is visible right away.
      */
     public function index()
     {
@@ -27,11 +27,10 @@ class ProgressController extends Controller
             fn (array $day) => end($day['chapters'])['order_id'],
             $schedule,
         );
-        $todayIndex = $this->dayIndex(now()->toDateString());
 
         $readers = Reader::orderBy('name')
             ->get()
-            ->map(function (Reader $reader) use ($plan, $dayTargets, $totalDays, $todayIndex) {
+            ->map(function (Reader $reader) use ($plan, $dayTargets, $totalDays) {
                 $lag = $plan->lagFor($reader);
                 $actualOrderId = $lag['actual_order_id'];
 
@@ -49,7 +48,12 @@ class ProgressController extends Controller
                     ? max(0, $lag['target_day_number'] - $daysDone)
                     : 0;
 
-                [$currentStreak, $longestStreak] = $this->streaksFor($reader, $todayIndex);
+                // The streak columns mirror the `streaks` rows, exactly what
+                // the reader app reports, so a manual adjustment shows here
+                // the moment it is made.
+                $latestStreak = $reader->streaks()->latest('id')->first();
+                $currentStreak = $latestStreak?->count ?? 0;
+                $longestStreak = $reader->streaks()->max('count') ?? 0;
 
                 return [
                     'reader_id' => $reader->id,
@@ -75,45 +79,5 @@ class ProgressController extends Controller
             ],
             'readers' => $readers,
         ]);
-    }
-
-    /**
-     * Current streak (run reaching today or yesterday) and longest streak
-     * over the reader's study days.
-     */
-    private function streaksFor(Reader $reader, int $todayIndex): array
-    {
-        $indexes = $reader->studyDays()
-            ->pluck('created_at')
-            ->map(fn ($createdAt) => $this->dayIndex(Carbon::parse($createdAt)->toDateString()))
-            ->unique()
-            ->sort()
-            ->values();
-
-        if ($indexes->isEmpty()) {
-            return [0, 0];
-        }
-
-        $run = 0;
-        $longest = 0;
-        $previous = null;
-
-        foreach ($indexes as $index) {
-            $run = ($previous !== null && $index === $previous + 1) ? $run + 1 : 1;
-            $longest = max($longest, $run);
-            $previous = $index;
-        }
-
-        $current = ($previous === $todayIndex || $previous === $todayIndex - 1) ? $run : 0;
-
-        return [$current, $longest];
-    }
-
-    /**
-     * Days since epoch for a date, forced to UTC so runs never break on DST.
-     */
-    private function dayIndex(string $date): int
-    {
-        return (int) floor(strtotime($date.' UTC') / 86400);
     }
 }

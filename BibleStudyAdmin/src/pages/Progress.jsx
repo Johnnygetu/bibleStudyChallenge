@@ -5,11 +5,12 @@ import { useProgressContext } from '@/context/ProgressContext';
 import { isFallingBehind, isOnTrack } from '@/lib/progress';
 
 export default function Progress() {
-  const { data, loading, error, reload, chapters, setProgress } = useProgressContext();
+  const { data, loading, error, reload, chapters, setProgress, setStreak } = useProgressContext();
   const [expanded, setExpanded] = useState(null);
   const [view, setView] = useState('all');
   const [search, setSearch] = useState('');
   const [adjusting, setAdjusting] = useState(null);
+  const [streaking, setStreaking] = useState(null);
 
   if (error) {
     return (
@@ -169,6 +170,13 @@ export default function Progress() {
                       <Target className="icon-16" />
                       Set progress
                     </button>
+                    <button
+                      onClick={() => setStreaking(d)}
+                      className="btn-secondary btn-block details-action"
+                    >
+                      <Flame className="icon-16" />
+                      Set streak
+                    </button>
                   </div>
                 )}
               </div>
@@ -185,6 +193,15 @@ export default function Progress() {
           currentOrderId={adjusting.currentOrderId}
           onClose={() => setAdjusting(null)}
           onSave={setProgress}
+        />
+      )}
+
+      {/* Set-streak modal */}
+      {streaking && (
+        <SetStreakModal
+          reader={streaking.reader}
+          onClose={() => setStreaking(null)}
+          onSave={setStreak}
         />
       )}
     </div>
@@ -260,6 +277,69 @@ function SetProgressModal({ reader, chapters, currentOrderId, onClose, onSave })
           className="btn-primary btn-block btn-save"
         >
           {saving ? 'Saving...' : 'Save Progress'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SetStreakModal({ reader, onClose, onSave }) {
+  const [streak, setStreak] = useState(String(reader.current_streak ?? 0));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const value = Number(streak);
+  const valid = streak !== '' && Number.isInteger(value) && value >= 0;
+
+  async function save() {
+    if (!valid) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave(reader.id, value);
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Could not update the streak.');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay modal-bottom fade-in" onClick={onClose}>
+      <div className="modal modal-sheet slide-up" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3 className="modal-title serif">Set Streak</h3>
+          <button onClick={onClose} className="btn-ghost">
+            <X className="icon-20" />
+          </button>
+        </div>
+
+        <p className="page-sub">
+          Set {reader.name}&apos;s streak by hand. It cannot go past today&apos;s plan day.
+        </p>
+
+        <div className="stack">
+          <div>
+            <label className="field-label">Streak (days)</label>
+            <input
+              type="number"
+              min="0"
+              value={streak}
+              onChange={(e) => setStreak(e.target.value)}
+              className="input"
+              placeholder="0"
+            />
+          </div>
+
+          {error && <p className="form-error">{error}</p>}
+        </div>
+
+        <button
+          onClick={save}
+          disabled={saving || !valid}
+          className="btn-primary btn-block btn-save"
+        >
+          {saving ? 'Saving...' : 'Save Streak'}
         </button>
       </div>
     </div>
