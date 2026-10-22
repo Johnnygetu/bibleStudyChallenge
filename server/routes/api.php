@@ -42,6 +42,7 @@ Route::get('readers/{reader}/plans/{plan}/daily-readings', [ReaderController::cl
 Route::get('readers/{reader}/plans/{plan}/lag-status', [ReaderController::class, 'lagStatus']);
 Route::post('readers/{reader}/plans/{plan}/save-progress', [ReaderController::class, 'saveProgress']);
 Route::post('readers/{reader}/plans/{plan}/set-progress', [ReaderController::class, 'setProgress']);
+Route::post('readers/{reader}/set-streak', [ReaderController::class, 'setStreak'])->name('readers.set-streak');
 Route::post('readers/{reader}/scores', [ReaderController::class, 'storeScore'])->name('scores.store');
 
 Route::get('plans/{plan}/schedule', [PlanController::class, 'schedule']);

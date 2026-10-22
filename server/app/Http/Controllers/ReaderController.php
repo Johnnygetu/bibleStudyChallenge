@@ -325,6 +325,34 @@ class ReaderController extends Controller
     }
 
     /**
+     * Admin override: set the reader's streak by hand.
+     *
+     * The reader-facing app and the daily readings report the newest streak
+     * row, so this adjusts that row in place. Stacking a fresh row would
+     * strand the reader on a value no later save would continue from.
+     */
+    public function setStreak(Request $request, Reader $reader)
+    {
+        $data = $request->validate([
+            'streak' => 'required|integer|min:0|max:3650',
+        ]);
+
+        $streak = $reader->streaks()->latest('id')->first();
+
+        if ($streak) {
+            $streak->update(['count' => $data['streak']]);
+        } else {
+            $streak = $reader->streaks()->create(['count' => $data['streak']]);
+        }
+
+        return response([
+            'message' => 'Reader streak updated.',
+            'reader_id' => $reader->id,
+            'streak' => $streak->count,
+        ]);
+    }
+
+    /**
      * Override a reader's position in the plan to a chapter the admin picks.
      *
      * The chosen chapter is recorded as the reader's position at the start of
