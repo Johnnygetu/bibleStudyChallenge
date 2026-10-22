@@ -9,5 +9,5 @@
 // invalidated AppProviders and every other context with it — and the dev
 // server would occasionally hand the provider and a consumer two different
 // copies of the same context, so useContext returned null.
-export const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
-// export const apiUrl = import.meta.env.VITE_API_URL || 'https://bibleapi.pharmasoft-et.com/api';
+// export const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+export const apiUrl = import.meta.env.VITE_API_URL || 'https://bibleapi.pharmasoft-et.com/api';

@@ -63,6 +63,37 @@
   margin-bottom: 1.5rem;
 }
 
+.registration__warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  background-color: rgba(232, 89, 12, 0.08);
+  border: 1px solid rgba(232, 89, 12, 0.4);
+  border-radius: 0.75rem;
+  padding: 0.875rem;
+}
+
+.registration__warning-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  color: var(--ember-600);
+  margin-top: 0.125rem;
+}
+
+.registration__warning-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ember-600);
+  margin-bottom: 0.25rem;
+}
+
+.registration__warning-text {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ink-300);
+}
+
 .registration__form {
   display: flex;
   flex-direction: column;

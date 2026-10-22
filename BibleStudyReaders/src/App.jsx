@@ -67,8 +67,6 @@ function AppContent() {
 }
 
 // Provider order matters: each provider consumes the ones above it.
-// NavigationProvider sits under UserProvider because the nav gates tabs on
-// the signed-in reader (the Community tab is a tester-gated feature).
 function App() {
   return (
     <DateOverrideProvider>

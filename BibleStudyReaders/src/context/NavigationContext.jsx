@@ -1,18 +1,15 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { BookOpen, Trophy, MessageSquare } from "lucide-react";
-import { useUserContext } from "@/context/UserContext";
-import { canTestFeature } from "@/lib/canTestFeature";
 
 // Owns the bottom-nav tab, so App and the screens stay free of state. Each tab
 // carries its own select handler and active flag, which lets the nav button
-// wire `onClick` and `className` straight to the tab object.
-// The Community tab is a tester-gated feature: it only appears for readers
-// whose chat id is listed in CAN_TEST_FEATURES.
+// wire `onClick` and `className` straight to the tab object. Every tab is
+// shown to every reader; `lib/canTestFeature.js` is kept around for gating
+// future in-development features.
 export const NavigationContext = createContext(null);
 
 export function NavigationProvider({ children }) {
   const [activeTab, setActiveTab] = useState("today");
-  const { user } = useUserContext();
 
   const navigate = useCallback((tab) => setActiveTab(tab), []);
 
@@ -41,9 +38,9 @@ export function NavigationProvider({ children }) {
       },
     ];
 
-    // Gated tabs drop out of the nav entirely for anyone not on the list.
-    return allTabs.filter((tab) => tab.id !== "community" || canTestFeature(user?.chatId));
-  }, [activeTab, user]);
+    // Every tab is visible to every reader.
+    return allTabs;
+  }, [activeTab]);
 
   const value = { activeTab, navigate, tabs };
 
