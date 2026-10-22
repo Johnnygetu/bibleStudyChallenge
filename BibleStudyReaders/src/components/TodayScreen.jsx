@@ -311,7 +311,9 @@ export function TodayScreen() {
         </>
       )}
 
-      {/* Top 5 Leaderboard */}
+      {/* Top 5 Leaderboard — hidden for now: the board below the quiz is
+          commented out until the leaderboard ships again.
+
       <div className="card top5">
         <div className="top5__head">
           <div className="top5__head-left">
@@ -352,6 +354,8 @@ export function TodayScreen() {
           ))}
         </div>
       </div>
+
+      */}
     </div>
   );
 }

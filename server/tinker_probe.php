@@ -1,0 +1,1 @@
+file_put_contents('books.json', json_encode(App\Models\BookChapter::groupBy('book')->selectRaw('book, count(*) as chapters, max(chapter_number) as max_chapter')->orderBy('book')->get()->toArray(), JSON_UNESCAPED_UNICODE));

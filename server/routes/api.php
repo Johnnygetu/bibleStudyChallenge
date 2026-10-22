@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\BookChapterController;
 use App\Http\Controllers\DailyReadingBroadcastController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GroupController;
@@ -23,6 +24,7 @@ Route::get('readers/by-chat/{chatId}', [ReaderController::class, 'showByChatId']
 Route::get('readers/early-progress', [ReaderController::class, 'earlyProgressReaders'])->name('readers.early-progress');
 Route::apiResource('readers', ReaderController::class);
 Route::get('questions/by-chapters', [QuestionController::class, 'byChapters'])->name('questions.by-chapters');
+Route::get('book-chapters', [BookChapterController::class, 'index'])->name('book-chapters.index');
 Route::post('questions/bulk', [QuestionController::class, 'bulkStore'])->name('questions.bulk');
 Route::apiResource('questions', QuestionController::class);
 Route::apiResource('groups', GroupController::class);

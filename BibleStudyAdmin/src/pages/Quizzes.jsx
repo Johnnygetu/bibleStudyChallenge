@@ -1,25 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, X, Edit2, HelpCircle, ChevronDown, ChevronRight, Trash2, BookOpen, Check, AlertCircle, CheckCircle2, Upload } from 'lucide-react';
 import { ErrorState } from '@/components/ui';
+import { apiUrl } from '@/context/apiUrl';
 import BulkUpload from '@/pages/BulkUpload.jsx';
 import { useQuestionsContext } from '@/context/QuestionsContext';
-
-const BIBLE_BOOKS = {
-  "Genesis": 50, "Exodus": 40, "Leviticus": 27, "Numbers": 36, "Deuteronomy": 34,
-  "Joshua": 24, "Judges": 21, "Ruth": 4, "1 Samuel": 31, "2 Samuel": 24,
-  "1 Kings": 22, "2 Kings": 25, "1 Chronicles": 29, "2 Chronicles": 36, "Ezra": 10,
-  "Nehemiah": 13, "Esther": 10, "Job": 42, "Psalms": 150, "Proverbs": 31,
-  "Ecclesiastes": 12, "Song of Solomon": 8, "Isaiah": 66, "Jeremiah": 52,
-  "Lamentations": 5, "Ezekiel": 48, "Daniel": 12, "Hosea": 14, "Joel": 3,
-  "Amos": 9, "Obadiah": 1, "Jonah": 4, "Micah": 7, "Nahum": 3, "Habakkuk": 3,
-  "Zephaniah": 3, "Haggai": 2, "Zechariah": 14, "Malachi": 4, "Matthew": 28,
-  "Mark": 16, "Luke": 24, "John": 21, "Acts": 28, "Romans": 16,
-  "1 Corinthians": 16, "2 Corinthians": 13, "Galatians": 6, "Ephesians": 6,
-  "Philippians": 4, "Colossians": 4, "1 Thessalonians": 5, "2 Thessalonians": 3,
-  "1 Timothy": 6, "2 Timothy": 4, "Titus": 3, "Philemon": 1, "Hebrews": 13,
-  "James": 5, "1 Peter": 5, "2 Peter": 3, "1 John": 5, "2 John": 1,
-  "3 John": 1, "Jude": 1, "Revelation": 22
-};
 
 export default function Quizzes() {
   const { questions, loading, error, deletingId, reload, bulkUpload, deleteQuestion } = useQuestionsContext();
@@ -47,16 +31,11 @@ export default function Quizzes() {
     );
   }
 
-  const grouped = new Map();
+  // Group purely from what the questions carry — books and chapters with no
+  // questions simply don't appear. Books are exactly the names stored on the
+  // server (Amharic in production), never a hardcoded canon list.
 
-  // Initialize grouped with all books and chapters
-  Object.entries(BIBLE_BOOKS).forEach(([book, totalChapters]) => {
-    const chaptersMap = new Map();
-    for (let i = 1; i <= totalChapters; i++) {
-      chaptersMap.set(i, []);
-    }
-    grouped.set(book, chaptersMap);
-  });
+  const grouped = new Map();
 
   questions.forEach((q) => {
     const book = q.book || 'Unknown Book';
@@ -121,14 +100,7 @@ export default function Quizzes() {
       ) : (
         <div className="list-tight">
           {Array.from(grouped.entries())
-            .sort((a, b) => {
-              const indexA = Object.keys(BIBLE_BOOKS).indexOf(a[0]);
-              const indexB = Object.keys(BIBLE_BOOKS).indexOf(b[0]);
-              if (indexA === -1 && indexB === -1) return a[0].localeCompare(b[0]);
-              if (indexA === -1) return 1;
-              if (indexB === -1) return -1;
-              return indexA - indexB;
-            })
+            .sort((a, b) => a[0].localeCompare(b[0]))
             .map(([book, chaptersMap]) => {
               const isBookExpanded = expandedBook === book;
               let totalQuestions = 0;
@@ -182,12 +154,7 @@ export default function Quizzes() {
 
                               {isChapterExpanded && (
                                 <div className="chapter-body">
-                                  {qs.length === 0 ? (
-                                    <div className="q-empty">
-                                      <p className="q-empty-title">No questions yet</p>
-                                      <p className="q-empty-sub">Click Add to create the first question for this chapter</p>
-                                    </div>
-                                  ) : qs.map((q) => (
+                                  {qs.map((q) => (
                                     <div key={q.id} className={deletingId === q.id ? 'q-card is-removing' : 'q-card'}>
                                       <div className="q-head">
                                         <p className="q-text">{q.question_text}</p>
@@ -288,7 +255,7 @@ function BookSkeletonList() {
 function QuestionForm({ question, onClose, onBulkUpload }) {
   const { addQuestion, updateQuestion } = useQuestionsContext();
   const isEdit = Boolean(question);
-  const [book, setBook] = useState(question?.book || 'Genesis');
+  const [book, setBook] = useState(question?.book || '');
   const [chapter, setChapter] = useState(question?.chapter || 1);
   const [questionText, setQuestionText] = useState(question?.question_text || '');
   const [options, setOptions] = useState({
@@ -304,6 +271,29 @@ function QuestionForm({ question, onClose, onBulkUpload }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Suggestions come from the challenge data itself (book_chapters on the
+  // server), not from a hardcoded book list. They're advisory only: the admin
+  // can type any book or chapter, and a failed fetch just leaves the fields
+  // as plain text/number inputs.
+  const [books, setBooks] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${apiUrl}/book-chapters`, { headers: { Accept: 'application/json' } })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((rows) => {
+        if (!cancelled && Array.isArray(rows)) {
+          setBooks(rows);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const chapterChoices = (books.find((entry) => entry.book === book)?.chapters ?? []).map((c) => c.chapter_number);
+
   async function save() {
     if (!book.trim() || !questionText.trim() || !options.a.trim() || !options.b.trim() || !options.c.trim() || !options.d.trim()) {
       setError('Please fill in the book, question, and all four options.');
@@ -313,7 +303,7 @@ function QuestionForm({ question, onClose, onBulkUpload }) {
     setError('');
 
     try {
-      const input = { book, chapter, questionText, options, correctOption: correct, reference };
+      const input = { book, chapter: Number(chapter), questionText, options, correctOption: correct, reference };
       if (isEdit) {
         await updateQuestion(question.id, input);
       } else {
@@ -352,32 +342,37 @@ function QuestionForm({ question, onClose, onBulkUpload }) {
           <div className="form-row">
             <div className="form-col">
               <label className="field-label">Book *</label>
-              <select
+              <input
+                type="text"
                 value={book}
-                onChange={(e) => {
-                  setBook(e.target.value);
-                  setChapter(1);
-                }}
+                onChange={(e) => setBook(e.target.value)}
+                placeholder="e.g. ዘፍጥረት"
+                list="quiz-book-options"
                 className="input"
                 disabled={isEdit}
-              >
-                {Object.keys(BIBLE_BOOKS).map((b) => (
-                  <option key={b} value={b}>{b}</option>
+              />
+              <datalist id="quiz-book-options">
+                {books.map((entry) => (
+                  <option key={entry.book} value={entry.book} />
                 ))}
-              </select>
+              </datalist>
             </div>
             <div className="form-col-narrow">
               <label className="field-label">Chapter *</label>
-              <select
+              <input
+                type="number"
+                min={1}
                 value={chapter}
                 onChange={(e) => setChapter(Number(e.target.value))}
+                list="quiz-chapter-options"
                 className="input"
                 disabled={isEdit}
-              >
-                {Array.from({ length: BIBLE_BOOKS[book] || 1 }, (_, i) => i + 1).map((c) => (
-                  <option key={c} value={c}>{c}</option>
+              />
+              <datalist id="quiz-chapter-options">
+                {chapterChoices.map((c) => (
+                  <option key={c} value={c} />
                 ))}
-              </select>
+              </datalist>
             </div>
           </div>
 
