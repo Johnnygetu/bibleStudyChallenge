@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Models\Reader;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class PostsController extends Controller
 {
@@ -116,9 +119,8 @@ class PostsController extends Controller
 
     /**
      * Admin removal through the admin panel: any note goes, author irrelevant.
-     * The request must carry a reason for taking the note down. The reason is
-     * validated but not stored yet — what happens with it (audit trail,
-     * logging, notifying the reader) is a pending decision.
+     * The request must carry a reason for taking the note down, and the
+     * author hears that reason in their Telegram chat.
      */
     public function adminDestroy(Request $request, Post $post)
     {
@@ -126,8 +128,74 @@ class PostsController extends Controller
             'reason' => 'required|string|max:1000',
         ]);
 
+        $reason = $request->input('reason');
+        $author = $post->reader()->first();
+
         $post->delete();
 
-        return response()->noContent();
+        $notified = $this->notifyAuthorOfRemoval($author, $reason);
+
+        return response([
+            'message' => 'Post deleted.',
+            'author_notified' => $notified,
+        ]);
+    }
+
+    /**
+     * Tell the author of a removed post what happened and why. A reader with
+     * no chat id, an unconfigured bot, or a Telegram failure never blocks the
+     * removal itself — the notice is best-effort and logged on failure.
+     */
+    private function notifyAuthorOfRemoval(?Reader $author, string $reason): bool
+    {
+        $botToken = config('services.telegram.bot_token') ?? env('TELEGRAM_BOT_TOKEN');
+
+        if (! $botToken || ! $author?->chat_id) {
+            Log::warning('Post removal notice skipped: reader is unreachable', [
+                'reader_id' => $author?->id,
+                'chat_id' => $author?->chat_id,
+                'bot_token' => (bool) $botToken,
+            ]);
+
+            return false;
+        }
+
+        $lines = [
+            '📥 <b>'.e($author->name).', your community post was removed.</b>',
+            '',
+            '<b>Reason:</b> '.e($reason),
+            '',
+            'Please keep community notes encouraging and within the study guidelines. 🙏',
+        ];
+
+        try {
+            $response = Http::timeout(10)->post(
+                'https://api.telegram.org/bot'.$botToken.'/sendMessage',
+                [
+                    'chat_id' => $author->chat_id,
+                    'text' => implode("\n", $lines),
+                    'parse_mode' => 'HTML',
+                ],
+            );
+
+            if ($response->successful()) {
+                return true;
+            }
+
+            Log::error('Post removal notice: sendMessage failed', [
+                'reader_id' => $author->id,
+                'chat_id' => $author->chat_id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Post removal notice: sendMessage exception', [
+                'reader_id' => $author->id,
+                'chat_id' => $author->chat_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return false;
     }
 }

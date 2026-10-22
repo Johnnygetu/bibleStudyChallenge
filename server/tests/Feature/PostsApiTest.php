@@ -6,6 +6,7 @@ use App\Models\Post;
 use App\Models\PostLike;
 use App\Models\Reader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class PostsApiTest extends TestCase
@@ -169,6 +170,8 @@ class PostsApiTest extends TestCase
             'postContent' => 'A note the admin panel will remove.',
         ])->assertStatus(201)->json('id');
 
+        Http::fake();
+
         // A reason must ride along, on an as-remove-any basis.
         $this->deleteJson("/api/admin/posts/{$post}")
             ->assertStatus(422)
@@ -180,9 +183,79 @@ class PostsApiTest extends TestCase
             ->assertJsonValidationErrors('reason');
 
         // With a reason any note goes — no author check, unlike the reader route.
+        // The author here has no chat id, so the Telegram notice cannot reach
+        // them and the response says so.
         $this->deleteJson("/api/admin/posts/{$post}", [
             'reason' => 'Inappropriate language.',
-        ])->assertStatus(204);
+        ])->assertOk()
+            ->assertJson(['author_notified' => false]);
+
+        // No chat id on file means nothing was ever attempted.
+        Http::assertNothingSent();
+
+        $this->assertDatabaseMissing('posts', ['id' => $post]);
+    }
+
+    public function test_admin_deletion_notifies_the_author_over_telegram(): void
+    {
+        Http::fake();
+
+        config(['services.telegram.bot_token' => 'test-token']);
+
+        $author = Reader::create([
+            'name' => 'Author Reader',
+            'phone_number' => '+251911111113',
+            'chat_id' => 12345,
+        ]);
+
+        $post = $this->postJson('/api/posts', [
+            'readerId' => $author->id,
+            'postContent' => 'A note the author will hear about.',
+        ])->assertStatus(201)->json('id');
+
+        $this->deleteJson("/api/admin/posts/{$post}", [
+            'reason' => 'Inappropriate language.',
+        ])->assertOk()
+            ->assertJson(['author_notified' => true]);
+
+        Http::assertSent(function ($request) {
+            $text = $request['text'] ?? '';
+
+            return $request->url() === 'https://api.telegram.org/bottest-token/sendMessage'
+                && $request['chat_id'] === 12345
+                && $request['parse_mode'] === 'HTML'
+                && str_contains($text, 'Author Reader')
+                && str_contains($text, 'Inappropriate language.');
+        });
+    }
+
+    public function test_admin_deletion_skips_the_notice_when_the_bot_is_not_configured(): void
+    {
+        // Fake HTTP even though the path should never send: the .env file in
+        // this environment carries a real bot token env fallback.
+        Http::fake();
+
+        // Empty string cuts the config fallback to env() off — null would
+        // resolve to the environment's real token.
+        config(['services.telegram.bot_token' => '']);
+
+        $author = Reader::create([
+            'name' => 'Author Reader',
+            'phone_number' => '+251911111114',
+            'chat_id' => 67890,
+        ]);
+
+        $post = $this->postJson('/api/posts', [
+            'readerId' => $author->id,
+            'postContent' => 'A note nobody hears about.',
+        ])->assertStatus(201)->json('id');
+
+        $this->deleteJson("/api/admin/posts/{$post}", [
+            'reason' => 'Duplicate note.',
+        ])->assertOk()
+            ->assertJson(['author_notified' => false]);
+
+        Http::assertNothingSent();
 
         $this->assertDatabaseMissing('posts', ['id' => $post]);
     }

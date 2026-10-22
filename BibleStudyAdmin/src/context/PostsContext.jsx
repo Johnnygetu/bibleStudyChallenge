@@ -86,10 +86,10 @@ export function PostsProvider({ children }) {
 
   // Removes a note through DELETE /admin/posts/{id} — a dedicated admin
   // route, unlike the reader app's own-post-only DELETE /posts/{id}. The
-  // server insists on a reason, which it validates but has no plan for yet.
-  // Optimistic: the row vanishes right away and only comes back if the
-  // server refuses. Returns { ok, message } so the confirm modal can show
-  // the failure inline instead of a page-wide error.
+  // server insists on a reason and tells the author over Telegram why the
+  // note was taken down. Optimistic: the row vanishes right away and only
+  // comes back if the server refuses. Returns { ok, message } so the confirm
+  // modal can show the failure inline instead of a page-wide error.
   const deletePost = useCallback(
     async (id, reason) => {
       const target = posts.find((post) => post.id === id);
