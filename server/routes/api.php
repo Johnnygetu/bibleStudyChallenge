@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\InactiveReaderReminderController;
 use App\Http\Controllers\LeaderboardController;
+use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PostsController;
 use App\Http\Controllers\ProgressController;
@@ -20,6 +21,11 @@ use Illuminate\Support\Facades\Route;
 Route::get('test', fn () => response(['message' => 'Test'], 200));
 
 Route::apiResource('admins', AdminController::class);
+
+// Recipients for the messaging app's Send To picker: `?audience=all`
+// returns every reader, `?audience=lagging` only the behind-schedule ones.
+Route::get('messaging/readers', [MessagingController::class, 'readers'])->name('messaging.readers');
+
 Route::get('readers/by-chat/{chatId}', [ReaderController::class, 'showByChatId']);
 Route::get('readers/early-progress', [ReaderController::class, 'earlyProgressReaders'])->name('readers.early-progress');
 Route::apiResource('readers', ReaderController::class);

@@ -1,11 +1,16 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../app_theme.dart';
+import '../constants.dart';
 import '../widgets/primary_button.dart';
 
 /// Recipient chooser opened from the main screen's Send button.
-/// Shows audiences like All Readers and Lagging Readers; once one is picked
-/// a Send button appears below the options. UI only — nothing is dispatched.
+/// Once an audience option is picked, the Send button at the bottom asks
+/// the server how many readers that audience holds and logs the count —
+/// actually dispatching the message comes later.
 class SendToScreen extends StatefulWidget {
   const SendToScreen({super.key, required this.message});
 
@@ -17,19 +22,42 @@ class SendToScreen extends StatefulWidget {
 }
 
 class _SendToScreenState extends State<SendToScreen> {
-  static const _audiences = <({IconData icon, String label})>[
-    (icon: Icons.groups, label: 'All Readers'),
-    (icon: Icons.trending_down, label: 'Lagging Readers'),
-    (icon: Icons.star_outline, label: 'Group Leaders'),
+  /// `value` is the audience name the backend messaging route expects.
+  static const _audiences = <({IconData icon, String label, String value})>[
+    (icon: Icons.groups, label: 'All Readers', value: 'all'),
+    (icon: Icons.trending_down, label: 'Lagging Readers', value: 'lagging'),
+    (icon: Icons.star_outline, label: 'Group Leaders', value: 'leaders'),
   ];
 
   /// Index of the chosen option, or null until one is selected.
   int? _selected;
 
-  void _send() {
-    // UI only — the actual dispatch goes through the server later.
+  Future<void> _send() async {
+    final option = _audiences[_selected!];
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$apiUrl/messaging/readers')
+                .replace(queryParameters: {'audience': option.value}),
+            headers: {'Accept': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final readers = jsonDecode(response.body) as List;
+        debugPrint('Got ${readers.length} readers for ${option.label}.');
+      } else {
+        debugPrint(
+          'Messaging API answered HTTP ${response.statusCode} for ${option.label}.',
+        );
+      }
+    } catch (error) {
+      debugPrint('Could not reach the messaging API: $error');
+    }
+
     // Popping with true tells the main screen the message went out.
-    Navigator.of(context).pop(true);
+    if (mounted) Navigator.of(context).pop(true);
   }
 
   @override
