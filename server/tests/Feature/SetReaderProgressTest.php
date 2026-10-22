@@ -21,7 +21,7 @@ class SetReaderProgressTest extends TestCase
      *
      * @return array{0: Plan, 1: Collection<int, Order>}
      */
-    private function makePlan(string $startingDay, string $book = 'Genesis'): array
+    private function makePlan(string $startingDay, string $book = 'Genesis', int $chapterCount = 4): array
     {
         $plan = Plan::create([
             'name' => 'Bible Challenge',
@@ -31,7 +31,7 @@ class SetReaderProgressTest extends TestCase
         ]);
 
         $orders = collect();
-        foreach ([1, 2, 3, 4] as $chapterNumber) {
+        foreach (range(1, $chapterCount) as $chapterNumber) {
             $chapter = BookChapter::create([
                 'book' => $book,
                 'chapter_number' => $chapterNumber,
@@ -166,5 +166,60 @@ class SetReaderProgressTest extends TestCase
             ->json('readings');
 
         $this->assertSame($orders[3]->chapter_id, $readings[0]['chapter_id']);
+    }
+
+    public function test_setting_the_progress_records_the_matching_day_streak(): void
+    {
+        // One chapter per day: the third chapter belongs to plan day 3.
+        [$plan, $orders] = $this->makePlan(now()->subDays(3)->toDateString());
+        $reader = $this->makeReader();
+
+        $response = $this->postJson("/api/readers/{$reader->id}/plans/{$plan->id}/set-progress", [
+            'order_id' => $orders[2]->id,
+        ])->assertStatus(201);
+
+        $this->assertSame(3, $response->json('streak'));
+        $this->assertDatabaseHas('streaks', [
+            'reader_id' => $reader->id,
+            'count' => 3,
+        ]);
+
+        // Later progress moves the same row, so the reader continues from the
+        // corrected value.
+        $this->postJson("/api/readers/{$reader->id}/plans/{$plan->id}/set-progress", [
+            'order_id' => $orders[3]->id,
+        ])->assertStatus(201);
+
+        $this->assertSame(1, $reader->streaks()->count());
+        $this->assertSame(4, $reader->streaks()->latest('id')->first()->count);
+    }
+
+    public function test_rejects_a_chapter_beyond_todays_plan(): void
+    {
+        // Six chapters on a plan started 3 days ago: today is day 4, the
+        // fourth chapter is today's last one, and the fifth is already
+        // tomorrow's reading.
+        [$plan, $orders] = $this->makePlan(now()->subDays(3)->toDateString(), 'Genesis', 6);
+        $reader = $this->makeReader();
+
+        $this->postJson("/api/readers/{$reader->id}/plans/{$plan->id}/set-progress", [
+            'order_id' => $orders[4]->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('order_id');
+
+        $this->assertSame(0, $reader->studyDays()->count());
+        $this->assertSame(0, $reader->streaks()->count());
+    }
+
+    public function test_rejects_progress_before_the_plan_starts(): void
+    {
+        [$plan, $orders] = $this->makePlan(now()->addDay()->toDateString());
+        $reader = $this->makeReader();
+
+        $this->postJson("/api/readers/{$reader->id}/plans/{$plan->id}/set-progress", [
+            'order_id' => $orders[0]->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('order_id');
+
+        $this->assertSame(0, $reader->studyDays()->count());
+        $this->assertSame(0, $reader->streaks()->count());
     }
 }

@@ -337,19 +337,46 @@ class ReaderController extends Controller
             'streak' => 'required|integer|min:0|max:3650',
         ]);
 
-        $streak = $reader->streaks()->latest('id')->first();
+        // The streak describes reading days, so it cannot reach past the day
+        // the plan is on today.
+        $plan = Plan::current();
 
-        if ($streak) {
-            $streak->update(['count' => $data['streak']]);
-        } else {
-            $streak = $reader->streaks()->create(['count' => $data['streak']]);
+        if (! $plan) {
+            throw ValidationException::withMessages([
+                'streak' => 'There is no reading plan yet, so there is no day the streak may reach.',
+            ]);
         }
+
+        $todayDayNumber = $plan->lagFor($reader)['current_day_number'];
+
+        if ($data['streak'] > $todayDayNumber) {
+            throw ValidationException::withMessages([
+                'streak' => "The streak cannot extend beyond today's reading day (day {$todayDayNumber}).",
+            ]);
+        }
+
+        $this->adjustStreak($reader, $data['streak']);
 
         return response([
             'message' => 'Reader streak updated.',
             'reader_id' => $reader->id,
-            'streak' => $streak->count,
+            'streak' => $data['streak'],
         ]);
+    }
+
+    /**
+     * Point the reader's newest streak row at an exact value, creating the
+     * row when the reader has none yet.
+     */
+    private function adjustStreak(Reader $reader, int $count): void
+    {
+        $streak = $reader->streaks()->latest('id')->first();
+
+        if ($streak) {
+            $streak->update(['count' => $count]);
+        } else {
+            $reader->streaks()->create(['count' => $count]);
+        }
     }
 
     /**
@@ -375,16 +402,46 @@ class ReaderController extends Controller
             ]);
         }
 
+        // A session cannot drop the reader ahead of where the plan stands
+        // today: the furthest chapter that may be recorded is the last one
+        // of today's plan day.
+        $lag = $plan->lagFor($reader);
+
+        if ($lag['current_day_number'] === 0) {
+            throw ValidationException::withMessages([
+                'order_id' => 'The plan has not started yet, so there is no reading today to set progress within.',
+            ]);
+        }
+
+        if ($order->id > $lag['target_order_id']) {
+            throw ValidationException::withMessages([
+                'order_id' => "The selected chapter is beyond today's reading.",
+            ]);
+        }
+
+        // The day the chosen chapter belongs to is what the reader has
+        // reached, so the streak follows the same number.
+        $dayNumber = null;
+        foreach ($plan->getSchedule() as $dayData) {
+            if (end($dayData['chapters'])['order_id'] >= $order->id) {
+                $dayNumber = $dayData['day'];
+                break;
+            }
+        }
+
         $studyDay = $reader->studyDays()->make([
             'last_studied_chapter_id' => $order->chapter_id,
         ]);
         $studyDay->created_at = today()->startOfDay()->subSecond();
         $studyDay->save();
 
+        $this->adjustStreak($reader, $dayNumber);
+
         return response([
             'message' => 'Reader progress updated.',
             'study_day' => $studyDay,
             'lag' => $plan->lagFor($reader),
+            'streak' => $dayNumber,
         ], 201);
     }
 
