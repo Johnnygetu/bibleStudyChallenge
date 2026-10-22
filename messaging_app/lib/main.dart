@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 
+import 'app_theme.dart';
+import 'screens/main_screen.dart';
+
 void main() {
-  runApp(const MainApp());
+  runApp(const MessagingApp());
 }
 
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+class MessagingApp extends StatelessWidget {
+  const MessagingApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World!'),
-        ),
-      ),
+    return MaterialApp(
+      title: 'Ayat Mekane Eyesus — Messaging',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light(),
+      home: const MainScreen(),
     );
   }
 }
