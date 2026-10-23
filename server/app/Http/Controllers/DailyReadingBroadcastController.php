@@ -94,10 +94,6 @@ class DailyReadingBroadcastController extends Controller
                 "Day {$daily['current_day']} of {$daily['total_days']} · {$chapters} {$chapterWord} · {$verses} verses",
             ];
 
-            if ($daily['is_catch_up_mode']) {
-                $lines[] = '⚡ Catch-up mode: a few extra verses today so you can get back on track.';
-            }
-
             $lines[] = '';
 
             foreach ($readings as $reading) {

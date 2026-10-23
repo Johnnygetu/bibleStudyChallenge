@@ -139,11 +139,11 @@ class DailyReadingBroadcastTest extends TestCase
         });
     }
 
-    public function test_a_reader_who_falls_behind_gets_a_catch_up_reminder(): void
+    public function test_a_reader_who_falls_behind_gets_a_broadcast_without_the_catch_up_note(): void
     {
         // Started two days ago, nothing read: behind the one-day schedule with
-        // no grace buffer, so the message carries the catch-up note and the day
-        // counter stops at the plan's length.
+        // no grace buffer, so the message still goes out while the day counter
+        // stops at the plan's length.
         $this->makePlan(now()->subDays(2)->toDateString());
         $this->makeReader('Jane Doe', 900000101);
 
@@ -154,7 +154,7 @@ class DailyReadingBroadcastTest extends TestCase
             ->assertJson(['sent' => 1]);
 
         Http::assertSent(function ($request) {
-            return str_contains($request['text'], 'Catch-up mode')
+            return ! str_contains($request['text'], 'Catch-up mode')
                 && str_contains($request['text'], 'Day 1 of 1');
         });
     }

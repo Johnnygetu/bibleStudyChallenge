@@ -13,6 +13,7 @@ use App\Http\Controllers\PostsController;
 use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\ReaderController;
+use App\Http\Controllers\StreakResetController;
 use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\TelegramGroupReadingController;
 use App\Http\Controllers\TelegramLeaderboardController;
@@ -52,6 +53,10 @@ Route::post('readers/{reader}/plans/{plan}/save-progress', [ReaderController::cl
 Route::post('readers/{reader}/plans/{plan}/set-progress', [ReaderController::class, 'setProgress']);
 Route::post('readers/{reader}/set-streak', [ReaderController::class, 'setStreak'])->name('readers.set-streak');
 Route::post('readers/{reader}/scores', [ReaderController::class, 'storeScore'])->name('scores.store');
+
+// Daily streak maintenance: every reader who did not read today has their
+// streak set to 0. Honour the ?processing_date override when it is present.
+Route::post('streaks/reset-missed', StreakResetController::class)->name('streaks.reset-missed');
 
 Route::get('plans/{plan}/schedule', [PlanController::class, 'schedule']);
 Route::patch('plans/{plan}/daily-verse-limit', [PlanController::class, 'updateDailyVerseLimit']);

@@ -152,12 +152,6 @@ export function TodayScreen() {
           </div>
         ) : (
         <>
-        {apiMetadata?.is_catch_up_mode && (
-          <div style={{ backgroundColor: 'rgba(255, 165, 0, 0.2)', padding: '8px 12px', borderRadius: '8px', marginBottom: '12px', fontSize: '0.9rem', color: '#e67e22' }}>
-            <strong>Catch-up mode:</strong> We added a few extra verses today to keep you on track!
-          </div>
-        )}
-
         <p className="reading-card__total">
           {apiMetadata
             ? `${todayTotal} chapters total (${apiMetadata.verses_assigned || 0} verses)`
