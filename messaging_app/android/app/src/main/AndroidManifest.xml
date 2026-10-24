@@ -3,6 +3,9 @@
          which needs SEND_SMS requested at runtime (SmsSender does that).
          Declaring it in `main` merges into every build variant. -->
     <uses-permission android:name="android.permission.SEND_SMS" />
+    <!-- Release APKs don't get Flutter's implicit INTERNET permission, so
+         declare it in `main`: the app calls the messaging server's API. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- SEND_SMS implies telephony hardware; keeping the feature optional so
          Play does not hide the app from tablets and Wi-Fi-only devices. -->
     <uses-feature
@@ -11,6 +14,7 @@
     <application
         android:label="messaging_app"
         android:name="${applicationName}"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

@@ -186,39 +186,40 @@ export function UserProvider({ children }) {
     return next;
   };
 
-  // Fetches the Reader model using the chat id when the app first runs. If no
-  // Reader comes back, the local device data is stale / orphaned, so wipe the
-  // storage AND the in-memory user: the app then shows the registration modal
-  // as though it is registering from scratch.
+  // Fetches the Reader model using the chat id when the app first runs. A
+  // "not found" is NOT treated as a stale device: a chat id the server does
+  // not know also belongs to accounts created without one (registered outside
+  // Telegram, or whose chat-id attach never landed), and wiping here would
+  // lock those readers out for good now that registration is closed. Instead:
+  // - When a Reader comes back and this device holds no account, restore it —
+  //   the chat id is the way back in ("open the app from your Telegram link").
+  // - When this device already holds an account, keep it; the chat-id sync
+  //   below links the id up server-side if it is still missing there.
   useEffect(() => {
     const chatId = telegramUser?.id ? String(telegramUser.id) : "";
     if (!chatId || !apiUrl) return;
 
     let cancelled = false;
 
-    const resetForFreshRegistration = () => {
-      // A pristine first run: nothing stored, no user in memory, and a fresh
-      // form prefilled with the Telegram name exactly like a first launch.
-      localStorage.clear();
-      setUser(null);
-      setRegistrationForm({ fullName: composeFullName(telegramUser), phone: "" });
-      setRegistrationError("");
-    };
-
     fetch(`${apiUrl}/readers/by-chat/${chatId}`, {
       headers: { Accept: "application/json" },
     })
       .then(async (res) => {
-        if (cancelled) return;
-        if (res.status === 404) {
-          resetForFreshRegistration();
-          return;
-        }
-        if (!res.ok) return;
+        if (cancelled || !res.ok) return;
         const reader = await res.json().catch(() => null);
-        if (!reader) {
-          resetForFreshRegistration();
-        }
+        if (cancelled || !reader?.id) return;
+
+        setUser((prev) => {
+          if (prev) return prev;
+          const next = {
+            id: reader.id,
+            fullName: (reader.name ?? "").trim(),
+            phone: reader.phone_number ?? "",
+            chatId: reader.chat_id != null ? String(reader.chat_id) : "",
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          return next;
+        });
       })
       .catch(() => {});
 
