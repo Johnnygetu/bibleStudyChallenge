@@ -59,6 +59,7 @@ Route::post('readers/{reader}/scores', [ReaderController::class, 'storeScore'])-
 Route::post('streaks/reset-missed', StreakResetController::class)->name('streaks.reset-missed');
 
 Route::get('plans/{plan}/schedule', [PlanController::class, 'schedule']);
+Route::get('plans/{plan}/orders', [PlanController::class, 'orders']);
 Route::patch('plans/{plan}/daily-verse-limit', [PlanController::class, 'updateDailyVerseLimit']);
 
 // Daily broadcast: every reader gets today's reading over Telegram.
