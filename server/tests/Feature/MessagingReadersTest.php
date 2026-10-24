@@ -54,6 +54,16 @@ class MessagingReadersTest extends TestCase
         ]);
     }
 
+    /**
+     * The developer's .env may have demo mode on: every test here pins the
+     * toggle off, and the demo tests flip it back after setUp.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['demo.enabled' => false]);
+    }
+
     public function test_all_returns_every_reader_with_the_recipient_columns(): void
     {
         $this->makePlan(now()->toDateString());
@@ -135,5 +145,51 @@ class MessagingReadersTest extends TestCase
         $this->getJson('/api/messaging/readers?audience=strangers')
             ->assertStatus(422)
             ->assertJsonValidationErrors('audience');
+    }
+
+    public function test_demo_mode_returns_only_the_can_test_feature_testers(): void
+    {
+        config(['demo.enabled' => true]);
+
+        // Two readers sit inside the mirrored tester list, one outside it:
+        // no plan is created on purpose — the audience must not matter.
+        $alice = $this->makeReader('Alice Zodiac', 388908454);
+        $cora = $this->makeReader('Cora Tester', 5549839020);
+        $this->makeReader('Bob Aardvark', 222);
+
+        $expect = [[
+            'id' => $alice->id,
+            'name' => 'Alice Zodiac',
+            'phone_number' => $alice->phone_number,
+            'chat_id' => 388908454,
+        ], [
+            'id' => $cora->id,
+            'name' => 'Cora Tester',
+            'phone_number' => $cora->phone_number,
+            'chat_id' => 5549839020,
+        ]];
+
+        $this->getJson('/api/messaging/readers?audience=all')
+            ->assertStatus(200)
+            ->assertExactJson($expect);
+
+        // The audience is ignored in demo mode: testers alone, every time.
+        $this->getJson('/api/messaging/readers?audience=lagging')
+            ->assertStatus(200)
+            ->assertExactJson($expect);
+    }
+
+    public function test_with_demo_mode_disabled_every_reader_is_returned(): void
+    {
+        config(['demo.enabled' => false]);
+
+        // A reader inside the tester list and one outside it: with the
+        // toggle off neither list membership is checked.
+        $this->makeReader('Alice Zodiac', 388908454);
+        $this->makeReader('Bob Aardvark', 222);
+
+        $this->getJson('/api/messaging/readers?audience=all')
+            ->assertStatus(200)
+            ->assertJsonCount(2);
     }
 }

@@ -10,6 +10,9 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.6.0
+  # Background SMS on Android — wraps native SmsManager (no messaging UI).
+  # Android only; the sender reports failures instead of opening a dialog.
+  telephony_sms: ^0.1.0
 
 dev_dependencies:
   flutter_test:

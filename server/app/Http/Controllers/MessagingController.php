@@ -17,6 +17,11 @@ class MessagingController extends Controller
      * plan's schedule. Both lists carry the same recipient columns, and the
      * lagging list adds how far behind each reader sits so the message can
      * quote the gap.
+     *
+     * With demo mode on (IS_DEMO_MODE), whatever the audience asks for, the
+     * picker answers with the tester chat ids of the reader app's
+     * `canTestFeature.js` alone — a blast submitted while demoing never
+     * collects a real reader's phone number.
      */
     public function readers(Request $request): JsonResponse
     {
@@ -24,10 +29,31 @@ class MessagingController extends Controller
             'audience' => 'nullable|string|in:all,lagging',
         ]);
 
+        if (config('demo.enabled')) {
+            return response()->json($this->demoReaders());
+        }
+
         return response()->json(match ($data['audience'] ?? 'all') {
             'lagging' => $this->laggingReaders(),
             default => $this->allReaders(),
         });
+    }
+
+    /**
+     * The tester readers demo mode limits messaging to: the readers whose
+     * chat id is in the reader app's canTestFeature list.
+     */
+    private function demoReaders(): array
+    {
+        $chatIds = collect(config('demo.chat_ids'))
+            ->map(fn ($chatId) => (int) $chatId)
+            ->all();
+
+        return Reader::whereIn('chat_id', $chatIds)
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Reader $reader) => $this->recipientColumns($reader))
+            ->all();
     }
 
     /**

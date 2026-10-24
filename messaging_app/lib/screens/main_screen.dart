@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
+import '../sms_sender.dart';
 import '../widgets/primary_button.dart';
 import 'send_to_screen.dart';
 
 /// The messaging app's main screen: a large compose box where the message
-/// is written, and a send button below it. UI only — no server wiring yet.
+/// is written, and a send button below it.
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -34,13 +35,39 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _send() async {
     if (!_canSend) return;
     // Hand the draft to the recipient picker; the box clears only if the
-    // message is confirmed sent there, so backing out keeps the draft.
-    final sent = await Navigator.of(context).push<bool>(
+    // message went out, so backing out keeps the draft.
+    final report = await Navigator.of(context).push<SmsDispatchReport>(
       MaterialPageRoute(
         builder: (_) => SendToScreen(message: _messageController.text.trim()),
       ),
     );
-    if (sent == true) _messageController.clear();
+    if (report == null || !mounted) return;
+    _messageController.clear();
+
+    // Colour the outcome: green when every reader got the message, amber
+    // with partial failures, red when the permission was refused.
+    final (color, textColor) = switch (report) {
+      _ when !report.permissionGranted => (
+        AppColors.danger600,
+        AppColors.ink950,
+      ),
+      _ when report.failed > 0 => (AppColors.amber500, AppColors.ink100),
+      _ => (AppColors.success600, AppColors.ink950),
+    };
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: color,
+        duration: report.failed > 0
+            ? const Duration(seconds: 6)
+            : const Duration(seconds: 4),
+        content: Text(
+          report.summary,
+          style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
   }
 
   @override

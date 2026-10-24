@@ -1,4 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Background SMS: the telephony_sms plugin wraps Android's SmsManager,
+         which needs SEND_SMS requested at runtime (SmsSender does that).
+         Declaring it in `main` merges into every build variant. -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <!-- SEND_SMS implies telephony hardware; keeping the feature optional so
+         Play does not hide the app from tablets and Wi-Fi-only devices. -->
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
     <application
         android:label="messaging_app"
         android:name="${applicationName}"
