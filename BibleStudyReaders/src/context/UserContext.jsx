@@ -22,6 +22,17 @@ function loadStoredUser() {
   }
 }
 
+// Maps the server's Reader model JSON to the account shape saved on this
+// device — the same shape registration itself stores.
+function readerToStoredUser(reader) {
+  return {
+    id: reader.id,
+    fullName: (reader.name ?? "").trim(),
+    phone: reader.phone_number ?? "",
+    chatId: reader.chat_id != null ? String(reader.chat_id) : "",
+  };
+}
+
 function composeFullName(telegramUser) {
   if (!telegramUser) return "";
   return `${telegramUser.first_name ?? ""} ${telegramUser.last_name ?? ""}`.trim();
@@ -186,6 +197,83 @@ export function UserProvider({ children }) {
     return next;
   };
 
+  // Installs a server reader as this device's account — only when the device
+  // holds none. Shared by the automatic first-launch restore below and the
+  // registration modal's manual "Fetch account" button.
+  const restoreReader = useCallback((reader) => {
+    setUser((prev) => {
+      if (prev) return prev;
+      const next = readerToStoredUser(reader);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // Manual account lookup behind the modal's "Fetch account" button: the chat
+  // id is matched against the server's readers and a match becomes this
+  // device's account. Returns a tri-state for the modal to render:
+  // "restored" (a match is now active — the modal unmounts), "not-found"
+  // (no reader with this chat id), or "error" (message for the person).
+  const restoreByChat = useCallback(async () => {
+    if (!apiUrl) {
+      return {
+        status: "error",
+        message:
+          "The server address is not configured. Set VITE_API_URL to the public Laravel API base URL ending in /api, then rebuild the reader app.",
+      };
+    }
+
+    const chatId = telegramUser?.id ? String(telegramUser.id) : "";
+    if (!chatId) {
+      // Telegram is still hydrating, or the launch carried no user at all.
+      // Outside Telegram the chat id can never arrive, so the reply is an
+      // instruction rather than a "try again".
+      if (telegramStatus === "loading") {
+        return {
+          status: "error",
+          message:
+            "Still connecting to Telegram — tap Fetch account again in a moment.",
+        };
+      }
+      return {
+        status: "error",
+        message:
+          "Open this app from its Telegram link so your Telegram account can be looked up.",
+      };
+    }
+
+    try {
+      const res = await fetch(`${apiUrl}/readers/by-chat/${chatId}`, {
+        headers: { Accept: "application/json" },
+      });
+      const reader = await res.json().catch(() => null);
+
+      if (res.status === 404) {
+        return { status: "not-found" };
+      }
+      if (!res.ok) {
+        return {
+          status: "error",
+          message:
+            "The server could not complete the lookup. Please try again shortly.",
+        };
+      }
+      if (!reader?.id) {
+        return { status: "not-found" };
+      }
+
+      restoreReader(reader);
+      setNotice("Welcome back! Your account is restored.");
+      return { status: "restored" };
+    } catch {
+      return {
+        status: "error",
+        message:
+          "We could not reach the server. Check your connection and try again.",
+      };
+    }
+  }, [apiUrl, telegramStatus, telegramUser, restoreReader]);
+
   // Fetches the Reader model using the chat id when the app first runs. A
   // "not found" is NOT treated as a stale device: a chat id the server does
   // not know also belongs to accounts created without one (registered outside
@@ -208,25 +296,14 @@ export function UserProvider({ children }) {
         if (cancelled || !res.ok) return;
         const reader = await res.json().catch(() => null);
         if (cancelled || !reader?.id) return;
-
-        setUser((prev) => {
-          if (prev) return prev;
-          const next = {
-            id: reader.id,
-            fullName: (reader.name ?? "").trim(),
-            phone: reader.phone_number ?? "",
-            chatId: reader.chat_id != null ? String(reader.chat_id) : "",
-          };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-          return next;
-        });
+        restoreReader(reader);
       })
       .catch(() => {});
 
     return () => {
       cancelled = true;
     };
-  }, [apiUrl, telegramUser]);
+  }, [apiUrl, telegramUser, restoreReader]);
 
   // A chat id the registration missed (it was still loading, or the account
   // was made outside Telegram) is attached silently on the first launch that
@@ -335,6 +412,7 @@ export function UserProvider({ children }) {
     dismissNotice,
     suggestedName,
     register,
+    restoreByChat,
     registrationForm,
     setRegistrationField,
     submitRegistration,

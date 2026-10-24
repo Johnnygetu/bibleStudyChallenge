@@ -18,9 +18,22 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
 
   assets:
     - assets/ayat-logo.png
+
+# Launcher icons (run via `dart run flutter_launcher_icons`).
+# Android only for now — flip `ios` on when the iOS build matters.
+flutter_launcher_icons:
+  # Regenerates the stock ic_launcher mipmaps in place, so the manifest
+  # keeps pointing at @mipmap/ic_launcher.
+  android: true
+  ios: false
+  # White background, Ayat logo tinted the brand navy.
+  image_path: "assets/launcher_icon_source.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/adaptive_foreground.png"

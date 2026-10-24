@@ -180,3 +180,29 @@
   gap: 0.5rem;
 }
 
+/* "Fetch account": layout only — colors come from the shared .btn-primary. */
+.registration__fetch {
+  width: 100%;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.registration__result {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.registration__result--not-found {
+  color: var(--ink-300);
+}
+
+.registration__result--error {
+  color: var(--danger-500);
+}
+
