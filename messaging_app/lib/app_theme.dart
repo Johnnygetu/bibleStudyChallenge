@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 
 /// Colors ported from the admin and reader web apps (`src/index.css`).
-/// The messaging app keeps the palette but ships with the platform
-/// default font — no custom font is loaded.
+/// The messaging app keeps the palette and now carries a single premium
+/// type voice: Bricolage Grotesque across the whole interface.
 class AppColors {
   AppColors._();
+
+  // canvas & surfaces — the depth hierarchy is canvas < white card.
+  static const canvas = Color(0xFFEEF1F4);
+  static const surface = Color(0xFFFFFFFF);
+  static const hairline = Color(0xFFDFE4E9);
 
   // ink (surfaces & text)
   static const ink950 = Color(0xFFF5F5F5);
@@ -40,6 +45,11 @@ class AppColors {
   static const danger600 = Color(0xFFC92A2A);
   static const amber500 = Color(0xFFF59E0B);
 
+  /// Soft navy elevation used by the primary button and the bottom dock —
+  /// shadows stay navy-tinted rather than black so surfaces sit *in* the
+  /// palette.
+  static const primaryShadow = Color(0x2E011E30); // rgba(1,30,48,.18)
+
   // shared shadows (from .app-nav / .menu)
   static const navShadow = <BoxShadow>[
     BoxShadow(
@@ -49,12 +59,19 @@ class AppColors {
       color: Color(0x0D000000),
     ),
   ];
+
+  /// Hairline rule for the docked send tray on the Send To screen.
+  static const dockLine = Color(0xFFDDE2E8);
 }
 
-/// Shared theme — mirrors the web apps' component styling (cards, buttons,
-/// inputs) while keeping the default platform font.
+/// Shared theme — one type family at four weights, quiet hairlines, navy
+/// answers every heading, selection, and action; greys carry reading.
 class AppTheme {
   AppTheme._();
+
+  /// The registered family in pubspec.yaml; referenced by name so widgets
+  /// with their own explicit TextStyles still inherit the voice.
+  static const fontFamily = 'Bricolage Grotesque';
 
   static ThemeData light() {
     final scheme = ColorScheme.light(
@@ -63,18 +80,34 @@ class AppTheme {
       secondary: AppColors.ember500,
       onSecondary: AppColors.ink950,
       error: AppColors.danger500,
-      surface: AppColors.ink850,
+      surface: AppColors.surface,
       onSurface: AppColors.ink100,
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: AppColors.ink950,
+      fontFamily: fontFamily,
+      scaffoldBackgroundColor: AppColors.canvas,
       splashColor: AppColors.primary400.withValues(alpha: 0.08),
       highlightColor: AppColors.primary400.withValues(alpha: 0.04),
       splashFactory: InkSplash.splashFactory,
-      // No fontFamily set anywhere — the default platform font is used.
+      dividerTheme: const DividerThemeData(color: AppColors.hairline),
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+        ),
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(20)),
+        ),
+      ),
+      // No custom text overrides per role — each surface styles its own
+      // Text run explicitly; the family flows in through fontFamily.
       textTheme: const TextTheme(
         bodyLarge: TextStyle(color: AppColors.ink100),
         bodyMedium: TextStyle(color: AppColors.ink100),

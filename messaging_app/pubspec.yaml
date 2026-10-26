@@ -26,6 +26,20 @@ flutter:
   assets:
     - assets/ayat-logo.png
 
+  # Bricolage Grotesque — the app's single type voice (four weights). The
+  # ThemeData.fontFamily references these by the family name below.
+  fonts:
+    - family: Bricolage Grotesque
+      fonts:
+        - asset: assets/fonts/BricolageGrotesque-400.ttf
+          weight: 400
+        - asset: assets/fonts/BricolageGrotesque-500.ttf
+          weight: 500
+        - asset: assets/fonts/BricolageGrotesque-600.ttf
+          weight: 600
+        - asset: assets/fonts/BricolageGrotesque-700.ttf
+          weight: 700
+
 # Launcher icons (run via `dart run flutter_launcher_icons`).
 # Android only for now — flip `ios` on when the iOS build matters.
 flutter_launcher_icons:

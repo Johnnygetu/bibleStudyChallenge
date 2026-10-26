@@ -64,6 +64,35 @@ class DailyReadingBroadcastTest extends TestCase
         ]);
     }
 
+    /**
+     * A two-day plan: four 60-verse chapters at a 100-verse limit, so each
+     * schedule day is two chapters.
+     */
+    private function makeTwoDayPlan(string $startingDay): Plan
+    {
+        $plan = Plan::create([
+            'name' => 'Bible Challenge',
+            'no_days' => 2,
+            'starting_day' => $startingDay,
+            'daily_verse_limit' => 100,
+        ]);
+
+        foreach (range(1, 4) as $chapterNumber) {
+            $chapter = BookChapter::create([
+                'book' => 'Genesis',
+                'chapter_number' => $chapterNumber,
+                'num_verses' => 60,
+            ]);
+
+            Order::create([
+                'plan_id' => $plan->id,
+                'chapter_id' => $chapter->id,
+            ]);
+        }
+
+        return $plan;
+    }
+
     public function test_sends_every_reachable_reader_their_reading_for_the_day(): void
     {
         $plan = $this->makePlan();
@@ -126,6 +155,37 @@ class DailyReadingBroadcastTest extends TestCase
 
         // One calculation, two surfaces: the app and the Telegram message can
         // never disagree about what today's reading is.
+        Http::assertSent(function ($request) use ($shown) {
+            foreach ($shown['readings'] as $reading) {
+                if (! str_contains($request['text'], "{$reading['book']} {$reading['chapter_number']} ({$reading['num_verses']} verses)")) {
+                    return false;
+                }
+            }
+
+            return str_contains($request['text'], "Day {$shown['current_day']} of {$shown['total_days']}")
+                && str_contains($request['text'], "{$shown['verses_assigned']} verses")
+                && $shown['chapters_count'] === count($shown['readings']);
+        });
+    }
+
+    public function test_a_lagging_readers_broadcast_matches_the_app_readings(): void
+    {
+        // Started yesterday with nothing read: the catch-up logic adds one
+        // extra chapter, and the two copies of it must still agree.
+        $plan = $this->makeTwoDayPlan(now()->subDay()->toDateString());
+        $reader = $this->makeReader('Jane Doe', 900000112);
+
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true], 200)]);
+
+        $shown = $this->getJson("/api/readers/{$reader->id}/plans/{$plan->id}/daily-readings")
+            ->assertOk()
+            ->json();
+
+        $this->assertTrue($shown['is_catch_up_mode']);
+        $this->assertSame(60, $shown['extra_verses_added']);
+
+        $this->postJson('/api/telegram/daily-readings')->assertOk();
+
         Http::assertSent(function ($request) use ($shown) {
             foreach ($shown['readings'] as $reading) {
                 if (! str_contains($request['text'], "{$reading['book']} {$reading['chapter_number']} ({$reading['num_verses']} verses)")) {

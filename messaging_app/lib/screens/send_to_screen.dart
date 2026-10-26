@@ -190,18 +190,34 @@ class _SendToScreenState extends State<SendToScreen> {
   Widget build(BuildContext context) {
     // Phone-like shell, same as the main screen and the web apps.
     return Scaffold(
-      // Send button pinned to the bottom of the scaffold — it only appears
-      // once an audience option has been selected.
+      // Send tray docked to the bottom with a hairline rule — it only
+      // appears once an audience option has been selected.
       bottomNavigationBar: _selected != null
-          ? SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                child: PrimaryButton(
-                  label: _sending ? 'Sending…' : 'Send',
-                  icon: Icons.send,
-                  enabled: !_sending,
-                  onPressed: _send,
+          ? Container(
+              decoration: const BoxDecoration(
+                color: AppColors.canvas,
+                border: Border(
+                  top: BorderSide(color: AppColors.dockLine, width: 0.5),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    offset: Offset(0, -10),
+                    blurRadius: 20,
+                    spreadRadius: -10,
+                    color: Color(0x0A011E30), // rgba(1,30,48,.04)
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                  child: PrimaryButton(
+                    label: _sending ? 'Sending…' : 'Send',
+                    icon: Icons.send,
+                    enabled: !_sending,
+                    onPressed: _send,
+                  ),
                 ),
               ),
             )
@@ -213,10 +229,10 @@ class _SendToScreenState extends State<SendToScreen> {
             child: ScrollConfiguration(
               behavior: const ScrollBehavior().copyWith(scrollbars: false),
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
                 children: [
                   _buildHeader(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 18),
                   for (final (index, audience) in _audiences.indexed) ...[
                     _AudienceOption(
                       icon: audience.icon,
@@ -225,7 +241,7 @@ class _SendToScreenState extends State<SendToScreen> {
                       onTap: () => setState(() => _selected = index),
                     ),
                     if (index != _audiences.length - 1)
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                   ],
                 ],
               ),
@@ -246,7 +262,7 @@ class _SendToScreenState extends State<SendToScreen> {
           icon: const Icon(
             Icons.chevron_left,
             size: 24,
-            color: AppColors.ink400,
+            color: AppColors.ink500,
           ),
         ),
         const Expanded(
@@ -256,7 +272,8 @@ class _SendToScreenState extends State<SendToScreen> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: AppColors.ink100,
+                color: AppColors.primary400,
+                letterSpacing: -0.2,
               ),
             ),
           ),
@@ -267,8 +284,8 @@ class _SendToScreenState extends State<SendToScreen> {
   }
 }
 
-/// Selectable audience card — navy fill when active, mirroring the web
-/// apps' `.toggle-btn.active` state.
+/// Selectable audience card — white on the canvas, navy when active. The
+/// state change morphs over 160ms so the tap visibly *does* something.
 class _AudienceOption extends StatelessWidget {
   const _AudienceOption({
     required this.icon,
@@ -284,67 +301,91 @@ class _AudienceOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppColors.primary400 : AppColors.ink850,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: selected
-            ? const BorderSide(color: AppColors.primary400, width: 1.5)
-            : const BorderSide(
-                color: Color(0x80E5E5E5),
-              ), // rgba(229,229,229,.5)
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOutCubic,
+      decoration: BoxDecoration(
+        color: selected ? AppColors.primary400 : AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: selected
+              ? AppColors.primary400
+              : AppColors.hairline.withValues(alpha: 0.9),
+          width: 1,
+        ),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          child: Row(
-            children: [
-              // Leading icon circle — light tint flips when selected.
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? const Color(0x1AFFFFFF) // rgba(255,255,255,.1)
-                      : const Color(0x1A022942), // rgba(2,41,66,.1)
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: selected ? AppColors.ink950 : AppColors.primary400,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: selected ? AppColors.ink950 : AppColors.ink100,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+            child: Row(
+              children: [
+                // Leading icon disc — the tint flips with the selection.
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? const Color(0x1AFFFFFF) // rgba(255,255,255,.1)
+                        : AppColors.primary400.withValues(alpha: 0.07),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: selected ? AppColors.ink950 : AppColors.primary400,
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              // Radio indicator: filled circle when chosen.
-              Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: selected ? AppColors.ink950 : null,
-                  shape: BoxShape.circle,
-                  border: selected
-                      ? null
-                      : Border.all(color: AppColors.ink600, width: 2),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: selected ? AppColors.ink950 : AppColors.ink100,
+                      letterSpacing: -0.1,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                // Radio indicator: white disc with a navy core when chosen,
+                // a quiet ring when not.
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  curve: Curves.easeOutCubic,
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: selected ? AppColors.surface : null,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: selected
+                          ? AppColors.surface
+                          : AppColors.ink600,
+                      width: selected ? 0 : 1.5,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: selected
+                      ? Container(
+                          width: 9,
+                          height: 9,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary400,
+                            shape: BoxShape.circle,
+                          ),
+                        )
+                      : null,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -366,10 +407,10 @@ class _SendProgressDialog extends StatelessWidget {
       // The loop cannot be interrupted from here: no back-button escape.
       canPop: false,
       child: Dialog(
-        backgroundColor: AppColors.ink850,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(22),
           child: ValueListenableBuilder<SendModalProgress>(
             valueListenable: progress,
             builder: (context, state, _) {
@@ -426,10 +467,10 @@ class _SendingCounters extends StatelessWidget {
         const Text(
           'Sending SMS',
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 12.5,
             fontWeight: FontWeight.w600,
-            color: AppColors.ink400,
-            letterSpacing: 1.8,
+            color: AppColors.ink500,
+            letterSpacing: 0.4,
           ),
         ),
         const SizedBox(height: 10),
@@ -438,7 +479,8 @@ class _SendingCounters extends StatelessWidget {
           style: const TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
-            color: AppColors.ink100,
+            color: AppColors.primary400,
+            letterSpacing: -0.4,
           ),
         ),
         const SizedBox(height: 12),

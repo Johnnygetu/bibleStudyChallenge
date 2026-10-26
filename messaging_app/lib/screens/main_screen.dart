@@ -84,12 +84,12 @@ class _MainScreenState extends State<MainScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const _BrandHeader(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   // Large message box takes the rest of the screen.
                   Expanded(
                     child: _MessageInput(controller: _messageController),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   PrimaryButton(
                     label: 'Send',
                     icon: Icons.send,
@@ -106,7 +106,8 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-/// Large multi-line input — white card, hairline border, navy focus ring.
+/// Large multi-line input — a white card that rises off the canvas, quiet
+/// hairline until focus, then a navy ring. Writing happens top-left.
 class _MessageInput extends StatelessWidget {
   const _MessageInput({required this.controller});
 
@@ -123,42 +124,42 @@ class _MessageInput extends StatelessWidget {
       cursorColor: AppColors.primary400,
       cursorWidth: 2,
       style: const TextStyle(
-        fontSize: 15,
-        height: 1.5,
+        fontSize: 16,
+        height: 1.45,
         color: AppColors.ink100,
       ),
       decoration: InputDecoration(
         filled: true,
-        fillColor: AppColors.ink850,
+        fillColor: AppColors.surface,
         hintText: 'Write your message…',
         hintStyle: const TextStyle(
-          fontSize: 15,
-          height: 1.5,
-          color: AppColors.ink500,
+          fontSize: 16,
+          height: 1.45,
+          color: AppColors.ink600,
         ),
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.ink750),
+          borderSide: const BorderSide(color: AppColors.hairline),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(
-            color: Color(0x80022942), // rgba(2, 41, 66, 0.5)
-            width: 2,
+            color: Color(0x66022942), // rgba(2, 41, 66, 0.4)
+            width: 1.5,
           ),
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.ink750),
         ),
       ),
     );
   }
 }
 
-/// Brand header — the Ayat Mekane Eyesus cross logo tinted navy the same way
-/// the web apps render it (white logo alpha-shaped over the page background).
+/// Brand header — a navy squircle badge carrying the white cross logo, next
+/// to the two-line wordmark. The one element meant to be remembered.
 class _BrandHeader extends StatelessWidget {
   const _BrandHeader();
 
@@ -166,15 +167,23 @@ class _BrandHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Image.asset(
-          'assets/ayat-logo.png',
+        Container(
           width: 48,
           height: 48,
-          fit: BoxFit.contain,
-          color: AppColors.primary400,
-          colorBlendMode: BlendMode.srcIn,
+          decoration: const BoxDecoration(
+            color: AppColors.primary400,
+            borderRadius: BorderRadius.all(Radius.circular(14)),
+          ),
+          // The logo PNG is white-on-transparent, so on the navy badge it is
+          // used as-is — no srcIn tint needed.
+          alignment: Alignment.center,
+          child: Image.asset(
+            'assets/ayat-logo.png',
+            height: 34,
+            fit: BoxFit.contain,
+          ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 14),
         const Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,11 +193,11 @@ class _BrandHeader extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 18,
-                  height: 1.25,
+                  fontSize: 19,
+                  height: 1.2,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary400,
-                  letterSpacing: 0.9,
+                  letterSpacing: 0.2,
                 ),
               ),
               Text(
@@ -197,10 +206,10 @@ class _BrandHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12,
-                  height: 1.25,
-                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                  fontWeight: FontWeight.w500,
                   color: AppColors.ink400,
-                  letterSpacing: 1.8,
+                  letterSpacing: 1.1,
                 ),
               ),
             ],

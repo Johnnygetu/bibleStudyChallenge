@@ -106,28 +106,15 @@ class Plan extends Model
      */
     public function dailyReadingsFor(Reader $reader): array
     {
-        $baseLimit = $this->daily_verse_limit;
-        $dynamicLimit = $baseLimit;
-        $isCatchUpMode = false;
-        $extraVersesAdded = 0;
+        $baseLimit = (int) $this->daily_verse_limit;
 
         // Calculate lag based on yesterday's progress. This ensures the daily readings
         // stay perfectly fixed for the entire calendar day, even if they save progress.
         $lagData = $this->lagFor($reader, false);
 
-        // Catch-up logic: a reader who is behind gets extra verses today so the
-        // remaining chapters still fit before the plan's scheduled end.
-        if ($lagData['is_lagging']) {
-            $excessVerses = $lagData['lagging_verses'];
-            $totalPlanDays = count($this->getSchedule());
-
-            // Calculate remaining days until the plan's scheduled end
-            $remainingDays = max(1, $totalPlanDays - $lagData['current_day_number'] + 1);
-
-            $extraVersesAdded = (int) ceil($excessVerses / $remainingDays);
-            $dynamicLimit = $baseLimit + $extraVersesAdded;
-            $isCatchUpMode = true;
-        }
+        $isCatchUpMode = $lagData['is_lagging'];
+        $targetOrderId = $isCatchUpMode ? $lagData['target_order_id'] : null;
+        $extraVersesAdded = 0;
 
         $startAfterOrderId = $lagData['actual_order_id'];
 
@@ -151,6 +138,7 @@ class Plan extends Model
 
         $versesUsed = 0;
         $readings = [];
+        $bonusOrder = null;
 
         foreach ($upcoming as $order) {
             $chapter = $order->chapter;
@@ -169,10 +157,47 @@ class Plan extends Model
 
             // Option B rule: Finish the chapter!
             // We add the chapter first, then if we hit/passed the limit, we stop.
-            if ($versesUsed >= $dynamicLimit) {
+            if ($versesUsed >= $baseLimit) {
                 break;
             }
         }
+
+        // Constant catch-up: exactly one extra whole chapter beyond the normal day.
+        // $upcoming->get(count($readings)) is the next order after the day's last
+        // chapter, because the loop added upcoming[0..n-1] in order.
+        if ($isCatchUpMode) {
+            $bonusOrder = $upcoming->get(count($readings));
+
+            if ($bonusOrder) {
+                $chapter = $bonusOrder->chapter;
+
+                $readings[] = [
+                    'order_id' => $bonusOrder->id,
+                    'chapter_id' => $chapter->id,
+                    'book' => $chapter->book,
+                    'chapter_number' => $chapter->chapter_number,
+                    'num_verses' => $chapter->num_verses,
+                    'is_completed' => $bonusOrder->id <= $currentOrderId,
+                ];
+
+                $versesUsed += $chapter->num_verses;
+            }
+        }
+
+        // A lagging reader never reads past the group's last chapter for today.
+        if ($isCatchUpMode) {
+            $readings = array_values(array_filter(
+                $readings,
+                fn (array $reading): bool => $reading['order_id'] <= $targetOrderId,
+            ));
+
+            $versesUsed = array_sum(array_column($readings, 'num_verses'));
+            $extraVersesAdded = ($bonusOrder && $bonusOrder->id <= $targetOrderId)
+                ? $bonusOrder->chapter->num_verses
+                : 0;
+        }
+
+        $dynamicLimit = $baseLimit + $extraVersesAdded;
 
         // Day and streak numbers for the reader-facing UI
         $totalDays = count($this->getSchedule());
