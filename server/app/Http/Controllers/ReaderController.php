@@ -7,8 +7,11 @@ use App\Models\Order;
 use App\Models\Plan;
 use App\Models\Reader;
 use App\Models\Score;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -154,6 +157,107 @@ class ReaderController extends Controller
         $reader->delete();
 
         return response(null, 204);
+    }
+
+    /**
+     * Flag every reader whose Telegram account is in the main youth group as a
+     * church member.
+     *
+     * The group comes from TELEGRAM_MAIN_YOUTH_CHAT_ID and each lookup runs
+     * through the bot's getChatMember call, so the bot has to be a member of
+     * that group. A reader's chat_id is the id of their private chat with the
+     * bot, which is their own Telegram user id — exactly the user_id
+     * getChatMember expects. Only a positive result is written: a reader the
+     * lookup does not place in the group keeps whatever the flag already says.
+     * One reader's failed lookup is logged and counted, not fatal for the rest.
+     */
+    public function checkChurchMembership(): JsonResponse
+    {
+        $youthChatId = config('services.telegram.main_youth_chat_id')
+            ?? env('TELEGRAM_MAIN_YOUTH_CHAT_ID');
+
+        if (! $youthChatId) {
+            Log::error('Church membership: main youth chat id not configured');
+
+            return response()->json(['ok' => false, 'error' => 'main youth chat id not configured'], 500);
+        }
+
+        $botToken = config('services.telegram.bot_token')
+            ?? env('TELEGRAM_BOT_TOKEN');
+
+        if (! $botToken) {
+            Log::error('Church membership: bot token not configured');
+
+            return response()->json(['ok' => false, 'error' => 'bot token not configured'], 500);
+        }
+
+        $checked = 0;
+        $members = 0;
+        $failed = 0;
+
+        // Only readers with a Telegram account can be looked up; the rest keep
+        // their current flag and are reported as skipped.
+        foreach (Reader::whereNotNull('chat_id')->get() as $reader) {
+            try {
+                $response = Http::timeout(10)->get("https://api.telegram.org/bot{$botToken}/getChatMember", [
+                    'chat_id' => $youthChatId,
+                    'user_id' => (int) $reader->chat_id,
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('Church membership: getChatMember exception', [
+                    'reader_id' => $reader->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $failed++;
+
+                continue;
+            }
+
+            if (! $response->successful()) {
+                Log::error('Church membership: getChatMember failed', [
+                    'reader_id' => $reader->id,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
+                $failed++;
+
+                continue;
+            }
+
+            $checked++;
+
+            $status = $response->json('result.status');
+
+            // creator/administrator/member are full members; a restricted
+            // member still counts when Telegram says is_member. left/kicked
+            // do not.
+            $isMember = in_array($status, ['creator', 'administrator', 'member'], true)
+                || ($status === 'restricted' && (bool) $response->json('result.is_member', false));
+
+            if ($isMember) {
+                $reader->update(['is_church_member' => true]);
+                $members++;
+            }
+        }
+
+        $skipped = Reader::whereNull('chat_id')->count();
+
+        Log::info('Church membership check finished', [
+            'checked' => $checked,
+            'members' => $members,
+            'skipped' => $skipped,
+            'failed' => $failed,
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'checked' => $checked,
+            'members' => $members,
+            'skipped' => $skipped,
+            'failed' => $failed,
+        ]);
     }
 
     /**

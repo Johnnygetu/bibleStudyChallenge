@@ -41,6 +41,9 @@ return [
         // The group that receives the leaderboard broadcast. A supergroup id
         // looks like -1001234567890.
         'group_chat_id' => env('TELEGRAM_GROUP_CHAT_ID'),
+        // The main youth group. Membership here is what the is_church_member
+        // flag on a reader records.
+        'main_youth_chat_id' => env('TELEGRAM_MAIN_YOUTH_CHAT_ID'),
         // Optional shared secret for the daily broadcast route. When set, the
         // caller must send it back as an X-Broadcast-Token header (or a token
         // in the request body).

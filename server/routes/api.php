@@ -52,6 +52,9 @@ Route::get('readers/{reader}/plans/{plan}/lag-status', [ReaderController::class,
 Route::post('readers/{reader}/plans/{plan}/save-progress', [ReaderController::class, 'saveProgress']);
 Route::post('readers/{reader}/plans/{plan}/set-progress', [ReaderController::class, 'setProgress']);
 Route::post('readers/{reader}/set-streak', [ReaderController::class, 'setStreak'])->name('readers.set-streak');
+// Church membership sweep: every reader with a Telegram account is looked up
+// in the main youth group and flagged when they are a member.
+Route::post('readers/check-church-membership', [ReaderController::class, 'checkChurchMembership'])->name('readers.check-church-membership');
 Route::post('readers/{reader}/scores', [ReaderController::class, 'storeScore'])->name('scores.store');
 
 // Daily streak maintenance: every reader who did not read today has their

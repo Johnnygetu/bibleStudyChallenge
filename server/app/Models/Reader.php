@@ -12,6 +12,11 @@ class Reader extends Model
         'phone_number',
         'name',
         'chat_id',
+        'is_church_member',
+    ];
+
+    protected $casts = [
+        'is_church_member' => 'boolean',
     ];
 
     /**
