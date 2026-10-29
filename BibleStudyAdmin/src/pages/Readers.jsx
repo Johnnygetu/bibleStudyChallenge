@@ -21,20 +21,40 @@ function ChurchMarker({ isChurchMember }) {
 }
 
 export default function Readers() {
-  const { users, loading, error, reload, patchUser, removeUser, checkChurchMembership } =
-    useUsersContext();
+  const {
+    users,
+    loading,
+    error,
+    reload,
+    patchUser,
+    removeUser,
+    checkChurchMembership,
+    checkChurchMembershipAllMembers,
+    churchCheckQueue,
+  } = useUsersContext();
   const [search, setSearch] = useState('');
 
   const [editing, setEditing] = useState(null);
   const [menuFor, setMenuFor] = useState(null);
   // { type, text } shown as a toast after a membership check.
   const [toast, setToast] = useState(null);
+  // { done, total } while the bulk membership check runs, null otherwise.
+  const [bulk, setBulk] = useState(null);
 
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  // Readers whose church answer is still unknown — the only ones the bulk check
+  // has anything to do.
+  const pendingCount = users.filter((r) => r.is_church_member == null).length;
+
+  // A saved queue means the last bulk check could not finish some readers, so
+  // the button resumes those instead of restarting the unknown ones.
+  const resumeCount = churchCheckQueue.length;
+  const checkAllCount = resumeCount > 0 ? resumeCount : pendingCount;
 
   const filtered = users.filter((r) => {
     return (
@@ -67,6 +87,25 @@ export default function Readers() {
     }
   }
 
+  async function handleCheckAll() {
+    setBulk({ done: 0, total: checkAllCount });
+
+    const summary = await checkChurchMembershipAllMembers((done, total) =>
+      setBulk({ done, total })
+    );
+
+    setBulk(null);
+
+    const readers = `${summary.checked} reader${summary.checked === 1 ? '' : 's'}`;
+    const members = `${summary.members} new member${summary.members === 1 ? '' : 's'}`;
+    const failed = summary.failed > 0 ? `, ${summary.failed} still failing` : '';
+
+    setToast({
+      type: summary.failed > 0 ? 'error' : summary.members > 0 ? 'success' : 'muted',
+      text: `${summary.resumed ? 'Resumed' : 'Checked'} ${readers} — ${members}${failed}.`,
+    });
+  }
+
   function updateStatus(id, status) {
     // Local-only until the readers table tracks status.
     console.log('Set reader status', id, status);
@@ -77,15 +116,26 @@ export default function Readers() {
   return (
     <div className="page stack fade-in">
       {/* Header */}
-      <div>
-        <h2 className="page-title serif">Readers</h2>
-        <p className="page-sub">
-          {loading ? (
-            <span className="sk-line sk-sub" />
-          ) : (
-            `${users.length} total readers · Readers sign up via the Telegram bot`
-          )}
-        </p>
+      <div className="page-head">
+        <div>
+          <h2 className="page-title serif">Readers</h2>
+          <p className="page-sub">
+            {loading ? (
+              <span className="sk-line sk-sub" />
+            ) : (
+              `${users.length} total readers · Readers sign up via the Telegram bot`
+            )}
+          </p>
+        </div>
+        <button
+          onClick={handleCheckAll}
+          disabled={loading || bulk !== null || checkAllCount === 0}
+          className="btn-secondary btn-compact"
+          title="Check the Telegram group for every reader who has not answered yet"
+        >
+          <UserCheck className="icon-16" />
+          {resumeCount > 0 ? `Resume (${resumeCount})` : 'Check all'}
+        </button>
       </div>
 
       {/* Search */}
@@ -214,6 +264,24 @@ export default function Readers() {
           onClose={() => setEditing(null)}
           onSaved={(patch) => patchUser(editing.id, patch)}
         />
+      )}
+
+      {/* Progress while the bulk membership check runs */}
+      {bulk && (
+        <div className="modal-overlay">
+          <div className="modal modal-progress">
+            <h3 className="modal-title serif">Checking membership</h3>
+            <p className="page-sub">
+              Checking {bulk.done} of {bulk.total} readers...
+            </p>
+            <div className="progress-track md">
+              <div
+                className="progress-fill"
+                style={{ width: `${bulk.total > 0 ? (bulk.done / bulk.total) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Result of the last membership check */}

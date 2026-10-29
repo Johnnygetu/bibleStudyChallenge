@@ -21,6 +21,32 @@ function toReader(row) {
   };
 }
 
+// Where a bulk membership check keeps the readers it could not resolve, so the
+// next run resumes from them instead of starting over.
+const CHURCH_CHECK_QUEUE_KEY = 'church_membership_check_pending';
+
+function loadChurchCheckQueue() {
+  try {
+    const raw = localStorage.getItem(CHURCH_CHECK_QUEUE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function storeChurchCheckQueue(ids) {
+  try {
+    if (ids.length === 0) {
+      localStorage.removeItem(CHURCH_CHECK_QUEUE_KEY);
+    } else {
+      localStorage.setItem(CHURCH_CHECK_QUEUE_KEY, JSON.stringify(ids));
+    }
+  } catch {
+    // Storage unavailable — the run still works, it just cannot resume.
+  }
+}
+
 // Owns everything about the reader list: the fetch, its loading/error states,
 // and the mutations the admin menus perform (delete persists to the API).
 export const UsersContext = createContext(null);
@@ -29,6 +55,9 @@ export function UsersProvider({ children }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Readers a previous bulk check could not resolve, kept in localStorage so a
+  // later click picks up where that run stopped.
+  const [churchCheckQueue, setChurchCheckQueue] = useState(loadChurchCheckQueue);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -92,6 +121,47 @@ export function UsersProvider({ children }) {
     }
   };
 
+  const updateChurchCheckQueue = (ids) => {
+    storeChurchCheckQueue(ids);
+    setChurchCheckQueue(ids);
+  };
+
+  // Checks the readers whose church answer is still unknown. The API checks one
+  // reader at a time, so this loops and calls it for each — sequentially, to
+  // keep the server load gentle. Readers a run could not resolve are kept in
+  // localStorage, and the next click resumes from them ("continue where it
+  // failed") rather than restarting the whole list. Returns a small summary for
+  // the caller to report.
+  const checkChurchMembershipAllMembers = async (onProgress) => {
+    const resumed = churchCheckQueue.length > 0;
+    const queue = resumed
+      ? churchCheckQueue
+      : users.filter((user) => user.is_church_member == null).map((user) => user.id);
+
+    const total = queue.length;
+    const failed = [];
+
+    // Report the start too, so a caller can show "0 of N" before the first call.
+    onProgress?.(0, total);
+
+    let members = 0;
+
+    for (let i = 0; i < queue.length; i++) {
+      const outcome = await checkChurchMembership(queue[i]);
+
+      if (outcome.status === 'member') members++;
+      if (outcome.status === 'error') failed.push(queue[i]);
+
+      // Saved after every reader, so a run cut short by a failure resumes at
+      // the next one instead of from the top.
+      updateChurchCheckQueue(failed);
+
+      onProgress?.(i + 1, total);
+    }
+
+    return { checked: total, members, failed: failed.length, resumed };
+  };
+
   // Delete on the server, then refresh the list from the API.
   const removeUser = useCallback(async (id) => {
     try {
@@ -108,7 +178,17 @@ export function UsersProvider({ children }) {
     }
   }, [reload]);
 
-  const value = { users, loading, error, reload, patchUser, removeUser, checkChurchMembership };
+  const value = {
+    users,
+    loading,
+    error,
+    reload,
+    patchUser,
+    removeUser,
+    checkChurchMembership,
+    checkChurchMembershipAllMembers,
+    churchCheckQueue,
+  };
 
   return <UsersContext.Provider value={value}>{children}</UsersContext.Provider>;
 }

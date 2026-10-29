@@ -912,6 +912,15 @@ ol {
   }
 }
 
+/* Bulk membership check: a small centered card with a progress bar. */
+.modal-progress {
+  text-align: center;
+}
+
+.modal-progress .progress-track {
+  margin-top: 1.25rem;
+}
+
 .pill {
   display: flex;
   align-items: center;
