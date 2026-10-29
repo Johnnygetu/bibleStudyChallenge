@@ -30,6 +30,9 @@ function readerToStoredUser(reader) {
     fullName: (reader.name ?? "").trim(),
     phone: reader.phone_number ?? "",
     chatId: reader.chat_id != null ? String(reader.chat_id) : "",
+    // null means the church question has not been answered yet; the reader app
+    // uses that to decide whether to ask.
+    isChurchMember: reader.is_church_member ?? null,
   };
 }
 
@@ -190,7 +193,13 @@ export function UserProvider({ children }) {
     const savedChatId = payload?.chat_id != null ? String(payload.chat_id) : "";
     if (chatId && !savedChatId) syncedChatIds.current.add(chatId);
 
-    const next = { id: payload?.id, fullName, phone, chatId: savedChatId };
+    const next = {
+      id: payload?.id,
+      fullName,
+      phone,
+      chatId: savedChatId,
+      isChurchMember: payload?.is_church_member ?? null,
+    };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setUser(next);
     setNotice("You're registered! Welcome to the Bible Study Challenge.");
@@ -204,6 +213,23 @@ export function UserProvider({ children }) {
     setUser((prev) => {
       if (prev) return prev;
       const next = readerToStoredUser(reader);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // Pulls the church flag from a freshly fetched reader into the stored
+  // account, so an answer the server already holds (the reader answered on
+  // another device, or the Telegram group sweep set it) silences the question
+  // here too. A server null means "not answered" and never overwrites a value
+  // this device is holding.
+  const syncChurchMembership = useCallback((reader) => {
+    const serverValue = reader.is_church_member;
+    if (serverValue == null) return;
+
+    setUser((prev) => {
+      if (!prev || prev.isChurchMember === serverValue) return prev;
+      const next = { ...prev, isChurchMember: serverValue };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
@@ -297,13 +323,14 @@ export function UserProvider({ children }) {
         const reader = await res.json().catch(() => null);
         if (cancelled || !reader?.id) return;
         restoreReader(reader);
+        syncChurchMembership(reader);
       })
       .catch(() => {});
 
     return () => {
       cancelled = true;
     };
-  }, [apiUrl, telegramUser, restoreReader]);
+  }, [apiUrl, telegramUser, restoreReader, syncChurchMembership]);
 
   // A chat id the registration missed (it was still loading, or the account
   // was made outside Telegram) is attached silently on the first launch that
@@ -336,6 +363,45 @@ export function UserProvider({ children }) {
         // Registration already succeeded without the chat id — nothing to do.
       });
   }, [telegramUser, user, apiUrl]);
+
+  // Records the reader's own answer to the church membership question
+  // (is_church_member). The stored flag only flips once the server has the
+  // answer, so the question keeps coming back until it is stored — and a
+  // failed save leaves the modal up for another try.
+  const submitChurchMembership = useCallback(
+    async (isMember) => {
+      if (!apiUrl || !user?.id) {
+        return { status: "error" };
+      }
+
+      try {
+        const res = await fetch(`${apiUrl}/readers/${user.id}/set-church-membership`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ is_church_member: isMember }),
+        });
+
+        if (!res.ok) {
+          return { status: "error" };
+        }
+
+        setUser((prev) => {
+          if (!prev) return prev;
+          const next = { ...prev, isChurchMember: isMember };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          return next;
+        });
+
+        return { status: "saved" };
+      } catch {
+        return { status: "error" };
+      }
+    },
+    [apiUrl, user]
+  );
 
   // -------------------------------------------------------------------------
   // Registration form
@@ -413,6 +479,8 @@ export function UserProvider({ children }) {
     suggestedName,
     register,
     restoreByChat,
+    isChurchMember: user?.isChurchMember ?? null,
+    submitChurchMembership,
     registrationForm,
     setRegistrationField,
     submitRegistration,

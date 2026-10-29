@@ -160,18 +160,17 @@ class ReaderController extends Controller
     }
 
     /**
-     * Flag every reader whose Telegram account is in the main youth group as a
-     * church member.
+     * Flag one reader as a church member when their Telegram account is in the
+     * main youth group.
      *
-     * The group comes from TELEGRAM_MAIN_YOUTH_CHAT_ID and each lookup runs
+     * The group comes from TELEGRAM_MAIN_YOUTH_CHAT_ID and the lookup runs
      * through the bot's getChatMember call, so the bot has to be a member of
      * that group. A reader's chat_id is the id of their private chat with the
      * bot, which is their own Telegram user id — exactly the user_id
      * getChatMember expects. Only a positive result is written: a reader the
      * lookup does not place in the group keeps whatever the flag already says.
-     * One reader's failed lookup is logged and counted, not fatal for the rest.
      */
-    public function checkChurchMembership(): JsonResponse
+    public function checkChurchMembership(Reader $reader): JsonResponse
     {
         $youthChatId = config('services.telegram.main_youth_chat_id')
             ?? env('TELEGRAM_MAIN_YOUTH_CHAT_ID');
@@ -191,73 +190,81 @@ class ReaderController extends Controller
             return response()->json(['ok' => false, 'error' => 'bot token not configured'], 500);
         }
 
-        $checked = 0;
-        $members = 0;
-        $failed = 0;
-
-        // Only readers with a Telegram account can be looked up; the rest keep
-        // their current flag and are reported as skipped.
-        foreach (Reader::whereNotNull('chat_id')->get() as $reader) {
-            try {
-                $response = Http::timeout(10)->get("https://api.telegram.org/bot{$botToken}/getChatMember", [
-                    'chat_id' => $youthChatId,
-                    'user_id' => (int) $reader->chat_id,
-                ]);
-            } catch (\Throwable $e) {
-                Log::error('Church membership: getChatMember exception', [
-                    'reader_id' => $reader->id,
-                    'error' => $e->getMessage(),
-                ]);
-
-                $failed++;
-
-                continue;
-            }
-
-            if (! $response->successful()) {
-                Log::error('Church membership: getChatMember failed', [
-                    'reader_id' => $reader->id,
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
-
-                $failed++;
-
-                continue;
-            }
-
-            $checked++;
-
-            $status = $response->json('result.status');
-
-            // creator/administrator/member are full members; a restricted
-            // member still counts when Telegram says is_member. left/kicked
-            // do not.
-            $isMember = in_array($status, ['creator', 'administrator', 'member'], true)
-                || ($status === 'restricted' && (bool) $response->json('result.is_member', false));
-
-            if ($isMember) {
-                $reader->update(['is_church_member' => true]);
-                $members++;
-            }
+        // Without a Telegram account there is nothing to look up; the reader
+        // keeps their current flag instead of being reported as not a member.
+        if (! $reader->chat_id) {
+            return response()->json([
+                'ok' => false,
+                'reader_id' => $reader->id,
+                'is_church_member' => $reader->is_church_member,
+                'error' => 'reader has no telegram chat id',
+            ], 422);
         }
 
-        $skipped = Reader::whereNull('chat_id')->count();
+        try {
+            $response = Http::timeout(10)->get("https://api.telegram.org/bot{$botToken}/getChatMember", [
+                'chat_id' => $youthChatId,
+                'user_id' => (int) $reader->chat_id,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Church membership: getChatMember exception', [
+                'reader_id' => $reader->id,
+                'error' => $e->getMessage(),
+            ]);
 
-        Log::info('Church membership check finished', [
-            'checked' => $checked,
-            'members' => $members,
-            'skipped' => $skipped,
-            'failed' => $failed,
-        ]);
+            return response()->json([
+                'ok' => false,
+                'reader_id' => $reader->id,
+                'error' => 'failed to check group membership',
+            ], 500);
+        }
+
+        if (! $response->successful()) {
+            Log::error('Church membership: getChatMember failed', [
+                'reader_id' => $reader->id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'reader_id' => $reader->id,
+                'error' => 'failed to check group membership',
+            ], 500);
+        }
+
+        $status = $response->json('result.status');
+
+        // creator/administrator/member are full members; a restricted member
+        // still counts when Telegram says is_member. left/kicked do not.
+        $isMember = in_array($status, ['creator', 'administrator', 'member'], true)
+            || ($status === 'restricted' && (bool) $response->json('result.is_member', false));
+
+        if ($isMember) {
+            $reader->update(['is_church_member' => true]);
+        }
 
         return response()->json([
             'ok' => true,
-            'checked' => $checked,
-            'members' => $members,
-            'skipped' => $skipped,
-            'failed' => $failed,
+            'reader_id' => $reader->id,
+            'is_church_member' => $reader->is_church_member,
         ]);
+    }
+
+    /**
+     * Record the reader's own answer to the church membership question, so the
+     * is_church_member column is what the reader said rather than what the
+     * Telegram group lookup (checkChurchMembership) inferred.
+     */
+    public function setChurchMembership(Request $request, Reader $reader): JsonResponse
+    {
+        $data = $request->validate([
+            'is_church_member' => 'required|boolean',
+        ]);
+
+        $reader->update(['is_church_member' => $data['is_church_member']]);
+
+        return response()->json($reader);
     }
 
     /**

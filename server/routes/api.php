@@ -52,9 +52,13 @@ Route::get('readers/{reader}/plans/{plan}/lag-status', [ReaderController::class,
 Route::post('readers/{reader}/plans/{plan}/save-progress', [ReaderController::class, 'saveProgress']);
 Route::post('readers/{reader}/plans/{plan}/set-progress', [ReaderController::class, 'setProgress']);
 Route::post('readers/{reader}/set-streak', [ReaderController::class, 'setStreak'])->name('readers.set-streak');
-// Church membership sweep: every reader with a Telegram account is looked up
-// in the main youth group and flagged when they are a member.
-Route::post('readers/check-church-membership', [ReaderController::class, 'checkChurchMembership'])->name('readers.check-church-membership');
+// Church membership answer: the reader's own yes/no from the onboarding modal
+// is written straight to the is_church_member column.
+Route::put('readers/{reader}/set-church-membership', [ReaderController::class, 'setChurchMembership'])->name('readers.set-church-membership');
+
+// Church membership check: one reader is looked up in the main youth group
+// and flagged when they are a member.
+Route::post('readers/{reader}/check-church-membership', [ReaderController::class, 'checkChurchMembership'])->name('readers.check-church-membership');
 Route::post('readers/{reader}/scores', [ReaderController::class, 'storeScore'])->name('scores.store');
 
 // Daily streak maintenance: every reader who did not read today has their

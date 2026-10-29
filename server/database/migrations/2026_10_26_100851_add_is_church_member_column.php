@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('readers', function (Blueprint $table) {
-            $table->boolean('is_church_member')->default(false);
+            $table->boolean('is_church_member')->default(null)->nullable(true);
         });
     }
 

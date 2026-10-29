@@ -10,6 +10,7 @@ import { PostsProvider } from "./context/PostsContext.jsx";
 import { ReadingProvider } from "./context/ReadingContext.jsx";
 import { QuizProvider } from "./context/QuizContext.jsx";
 import { RegistrationModal } from "./components/RegistrationModal.jsx";
+import { ChurchMembershipModal } from "./components/ChurchMembershipModal.jsx";
 // The processing-date test bar is disabled for now — the app uses today's
 // real date only. Re-enable by restoring this import and the <TestDateBar />
 // render below.
@@ -18,8 +19,13 @@ import "./components/App.css";
 
 function AppContent() {
   // First open: no registered user yet -> show the registration modal.
-  const { isRegistered, notice, dismissNotice } = useUserContext();
+  const { isRegistered, notice, dismissNotice, isChurchMember, submitChurchMembership } =
+    useUserContext();
   const { activeTab, tabs } = useNavigationContext();
+
+  // Ask the church question only while the reader has not answered it: a null
+  // is_church_member means unanswered, true/false means they already chose.
+  const needsChurchAnswer = isRegistered && isChurchMember == null;
 
   return (
     <div className="app-shell">
@@ -37,6 +43,7 @@ function AppContent() {
         </div>
       )}
       {!isRegistered && <RegistrationModal />}
+      {needsChurchAnswer && <ChurchMembershipModal onAnswer={submitChurchMembership} />}
       <main className="app-main">
         {activeTab === "today" && <TodayScreen />}
         {activeTab === "leaderboard" && <LeaderboardScreen />}

@@ -843,6 +843,75 @@ ol {
   border-color: var(--ink-600);
 }
 
+.badge-member {
+  background: rgba(47, 158, 68, 0.1);
+  color: var(--success-600);
+  border-color: rgba(47, 158, 68, 0.2);
+}
+
+.badge-not-member {
+  background: rgba(232, 89, 12, 0.1);
+  color: var(--ember-600);
+  border-color: rgba(232, 89, 12, 0.25);
+}
+
+.badge-unknown {
+  background: rgba(229, 229, 229, 0.5);
+  color: var(--ink-500);
+  border-color: var(--ink-600);
+}
+
+/* ============================================================
+   Toast (transient result messages)
+   ============================================================ */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 5.25rem;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: calc(100% - 2.5rem);
+  max-width: 23.5rem;
+  padding: 0.6875rem 0.625rem 0.6875rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  animation: slideUp 0.25s ease-out;
+}
+
+.toast-text {
+  flex: 1;
+}
+
+.toast--success {
+  background: rgba(47, 158, 68, 0.12);
+  border-color: rgba(47, 158, 68, 0.35);
+  color: var(--success-600);
+}
+
+.toast--muted {
+  background: rgba(2, 41, 66, 0.06);
+  border-color: rgba(2, 41, 66, 0.18);
+  color: var(--primary-600);
+}
+
+.toast--error {
+  background: rgba(224, 49, 49, 0.1);
+  border-color: rgba(224, 49, 49, 0.35);
+  color: var(--danger-600);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
 .pill {
   display: flex;
   align-items: center;

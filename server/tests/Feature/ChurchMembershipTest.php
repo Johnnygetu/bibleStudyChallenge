@@ -21,121 +21,119 @@ class ChurchMembershipTest extends TestCase
         ]);
     }
 
-    private function makeReader(string $phone, ?int $chatId): Reader
+    private function makeReader(?int $chatId = 900000001): Reader
     {
         return Reader::create([
-            'name' => 'Reader '.$phone,
-            'phone_number' => $phone,
+            'name' => 'Jane Doe',
+            'phone_number' => '+251911111111',
             'chat_id' => $chatId,
         ]);
     }
 
-    /**
-     * Answer each lookup from a user id to status map.
-     *
-     * @param  array<int, string|int>  $statusesByUserId
-     */
-    private function fakeMembershipLookups(array $statusesByUserId): void
+    public function test_flags_the_reader_when_they_are_in_the_main_youth_group(): void
     {
-        Http::fake(function ($request) use ($statusesByUserId) {
-            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
-            $userId = (int) ($query['user_id'] ?? 0);
-            $status = $statusesByUserId[$userId] ?? null;
+        $reader = $this->makeReader();
 
-            if (is_int($status)) {
-                return Http::response(['ok' => false, 'description' => 'chat not found'], $status);
-            }
+        Http::fake(['api.telegram.org/*' => Http::response([
+            'ok' => true,
+            'result' => ['status' => 'member'],
+        ])]);
 
-            if ($status === null) {
-                return Http::response(['ok' => false, 'description' => 'user not found'], 400);
-            }
-
-            return Http::response(['ok' => true, 'result' => ['status' => $status]]);
-        });
-    }
-
-    public function test_flags_readers_who_are_in_the_main_youth_group(): void
-    {
-        $member = $this->makeReader('+251911111111', 900000001);
-        $absent = $this->makeReader('+251922222222', 900000002);
-        $noChatId = $this->makeReader('+251933333333', null);
-
-        $this->fakeMembershipLookups([
-            900000001 => 'member',
-            900000002 => 'left',
-        ]);
-
-        $this->postJson('/api/readers/check-church-membership')
+        $this->postJson("/api/readers/{$reader->id}/check-church-membership")
             ->assertOk()
             ->assertJson([
                 'ok' => true,
-                'checked' => 2,
-                'members' => 1,
-                'skipped' => 1,
-                'failed' => 0,
+                'reader_id' => $reader->id,
+                'is_church_member' => true,
             ]);
 
-        $this->assertDatabaseHas('readers', ['id' => $member->id, 'is_church_member' => true]);
-        $this->assertDatabaseHas('readers', ['id' => $absent->id, 'is_church_member' => false]);
-        $this->assertDatabaseHas('readers', ['id' => $noChatId->id, 'is_church_member' => false]);
-
-        Http::assertSentCount(2);
+        $this->assertDatabaseHas('readers', [
+            'id' => $reader->id,
+            'is_church_member' => true,
+        ]);
 
         Http::assertSent(function ($request) {
             parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
 
             return str_contains($request->url(), '/getChatMember')
-                && ($query['chat_id'] ?? null) === '-1002573898939';
+                && ($query['chat_id'] ?? null) === '-1002573898939'
+                && ($query['user_id'] ?? null) === '900000001';
         });
     }
 
-    public function test_counts_failed_lookups_and_keeps_going(): void
+    public function test_counts_a_restricted_reader_as_a_member_when_telegram_says_so(): void
     {
-        $member = $this->makeReader('+251911111111', 900000001);
-        $broken = $this->makeReader('+251922222222', 900000002);
+        $reader = $this->makeReader();
 
-        $this->fakeMembershipLookups([
-            900000001 => 'creator',
-            900000002 => 400,
-        ]);
+        Http::fake(['api.telegram.org/*' => Http::response([
+            'ok' => true,
+            'result' => ['status' => 'restricted', 'is_member' => true],
+        ])]);
 
-        $this->postJson('/api/readers/check-church-membership')
+        $this->postJson("/api/readers/{$reader->id}/check-church-membership")
+            ->assertOk()
+            ->assertJson(['is_church_member' => true]);
+    }
+
+    public function test_leaves_the_reader_alone_when_they_left_the_group(): void
+    {
+        $reader = $this->makeReader();
+
+        Http::fake(['api.telegram.org/*' => Http::response([
+            'ok' => true,
+            'result' => ['status' => 'left'],
+        ])]);
+
+        $this->postJson("/api/readers/{$reader->id}/check-church-membership")
             ->assertOk()
             ->assertJson([
                 'ok' => true,
-                'checked' => 1,
-                'members' => 1,
-                'skipped' => 0,
-                'failed' => 1,
+                'is_church_member' => null,
             ]);
 
-        $this->assertDatabaseHas('readers', ['id' => $member->id, 'is_church_member' => true]);
-        $this->assertDatabaseHas('readers', ['id' => $broken->id, 'is_church_member' => false]);
+        // A non-member is not written: the column keeps its null "not answered".
+        $this->assertDatabaseHas('readers', [
+            'id' => $reader->id,
+            'is_church_member' => null,
+        ]);
     }
 
-    public function test_skips_readers_without_a_telegram_chat_id(): void
+    public function test_reports_a_reader_without_a_telegram_chat_id(): void
     {
-        $this->makeReader('+251911111111', null);
-        $this->makeReader('+251922222222', null);
+        $reader = $this->makeReader(null);
 
         Http::fake();
 
-        $this->postJson('/api/readers/check-church-membership')
-            ->assertOk()
+        $this->postJson("/api/readers/{$reader->id}/check-church-membership")
+            ->assertStatus(422)
             ->assertJson([
-                'ok' => true,
-                'checked' => 0,
-                'members' => 0,
-                'skipped' => 2,
-                'failed' => 0,
+                'ok' => false,
+                'error' => 'reader has no telegram chat id',
             ]);
 
         Http::assertNothingSent();
     }
 
+    public function test_reports_when_telegram_rejects_the_lookup(): void
+    {
+        $reader = $this->makeReader();
+
+        Http::fake(['api.telegram.org/*' => Http::response([
+            'ok' => false,
+            'description' => 'chat not found',
+        ], 400)]);
+
+        $this->postJson("/api/readers/{$reader->id}/check-church-membership")
+            ->assertStatus(500)
+            ->assertJson([
+                'ok' => false,
+                'error' => 'failed to check group membership',
+            ]);
+    }
+
     public function test_reports_a_missing_main_youth_chat_id(): void
     {
-        $this->makeReader('+251911111111', 900000001);
+        $reader = $this->makeReader();
 
         config(['services.telegram.main_youth_chat_id' => null]);
 
@@ -149,7 +147,7 @@ class ChurchMembershipTest extends TestCase
         try {
             Http::fake();
 
-            $this->postJson('/api/readers/check-church-membership')
+            $this->postJson("/api/readers/{$reader->id}/check-church-membership")
                 ->assertStatus(500)
                 ->assertJson(['ok' => false, 'error' => 'main youth chat id not configured']);
 

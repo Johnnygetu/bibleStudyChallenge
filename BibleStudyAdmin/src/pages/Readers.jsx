@@ -1,14 +1,40 @@
-import { useState } from 'react';
-import { Search, Phone, X, Flame, MoreVertical, Trash2, Edit2, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Search, Phone, X, Flame, MoreVertical, Trash2, Edit2, Users, UserCheck } from 'lucide-react';
 import { Avatar, ErrorState, ReaderSkeletonList } from '@/components/ui';
 import { useUsersContext } from '@/context/UsersContext';
 
+// The server's church column is a tri-state: true/false is the reader's own
+// answer, null means they have not answered yet.
+function ChurchMarker({ isChurchMember }) {
+  let label = 'Unknown';
+  let className = 'badge badge-unknown';
+
+  if (isChurchMember === true) {
+    label = 'Church member';
+    className = 'badge badge-member';
+  } else if (isChurchMember === false) {
+    label = 'Not church member';
+    className = 'badge badge-not-member';
+  }
+
+  return <span className={className}>{label}</span>;
+}
+
 export default function Readers() {
-  const { users, loading, error, reload, patchUser, removeUser } = useUsersContext();
+  const { users, loading, error, reload, patchUser, removeUser, checkChurchMembership } =
+    useUsersContext();
   const [search, setSearch] = useState('');
 
   const [editing, setEditing] = useState(null);
   const [menuFor, setMenuFor] = useState(null);
+  // { type, text } shown as a toast after a membership check.
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const filtered = users.filter((r) => {
     return (
@@ -26,6 +52,19 @@ export default function Readers() {
   function deleteReader(id) {
     removeUser(id);
     setMenuFor(null);
+  }
+
+  async function handleCheckMembership(reader) {
+    setMenuFor(null);
+    const outcome = await checkChurchMembership(reader.id);
+
+    if (outcome.status === 'member') {
+      setToast({ type: 'success', text: `${reader.name} is a church member.` });
+    } else if (outcome.status === 'not-member') {
+      setToast({ type: 'muted', text: `${reader.name} is not a church member.` });
+    } else {
+      setToast({ type: 'error', text: 'Could not check membership. Please try again.' });
+    }
   }
 
   function updateStatus(id, status) {
@@ -95,6 +134,7 @@ export default function Readers() {
                   </span>
                 </div>
                 <div className="row-meta">
+                  <ChurchMarker isChurchMember={reader.is_church_member} />
                   {reader.phone && (
                     <span className="meta-item">
                       <Phone className="icon-12" />
@@ -126,6 +166,16 @@ export default function Readers() {
                       >
                         <Edit2 className="icon-14" /> Edit
                       </button>
+                      {/* Only an unanswered reader can be checked; once the
+                          column is true or false there is nothing left to set. */}
+                      {reader.is_church_member == null && (
+                        <button
+                          onClick={() => handleCheckMembership(reader)}
+                          className="menu-item menu-item-primary"
+                        >
+                          <UserCheck className="icon-14" /> Check member
+                        </button>
+                      )}
                       {reader.status !== 'active' && (
                         <button onClick={() => updateStatus(reader.id, 'active')} className="menu-item menu-item-success">
                           <span className="menu-dot">●</span> Set Active
@@ -164,6 +214,16 @@ export default function Readers() {
           onClose={() => setEditing(null)}
           onSaved={(patch) => patchUser(editing.id, patch)}
         />
+      )}
+
+      {/* Result of the last membership check */}
+      {toast && (
+        <div className={`toast toast--${toast.type}`} role="status">
+          <span className="toast-text">{toast.text}</span>
+          <button onClick={() => setToast(null)} className="btn-ghost" aria-label="Dismiss">
+            <X className="icon-16" />
+          </button>
+        </div>
       )}
     </div>
   );
