@@ -107,9 +107,33 @@
   color: var(--ink-500);
 }
 
+/* Saving state: the chosen answer swaps its label for a spinner while both
+   answers stay disabled, so the question cannot be answered twice. */
+.church-modal__spinner {
+  display: block;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0 auto;
+  animation: church-modal-spin 0.7s linear infinite;
+}
+
+@keyframes church-modal-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.church-modal__btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .church-modal,
   .church-modal__card {
+    animation: none;
+  }
+
+  .church-modal__spinner {
     animation: none;
   }
 }
