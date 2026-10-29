@@ -34,6 +34,9 @@ class DashboardController extends Controller
 
         return response([
             'total_readers' => Reader::count(),
+            'church_members' => Reader::where('is_church_member', true)->count(),
+            'non_church_members' => Reader::where('is_church_member', false)->count(),
+            'unknown_church_members' => Reader::whereNull('is_church_member')->count(),
             'total_questions' => Question::count(),
             'total_groups' => Group::count(),
             'current_week' => $currentWeek,

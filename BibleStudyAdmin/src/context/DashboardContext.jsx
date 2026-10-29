@@ -60,6 +60,9 @@ export function DashboardProvider({ children }) {
 
       setStats({
         totalReaders: data.total_readers,
+        churchMembers: data.church_members,
+        nonChurchMembers: data.non_church_members,
+        unknownChurchMembers: data.unknown_church_members,
         totalQuestions: data.total_questions,
         totalGroups: data.total_groups,
         onTrack,

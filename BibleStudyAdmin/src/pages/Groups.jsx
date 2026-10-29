@@ -333,21 +333,21 @@ function LeaderConfirm({ member, onClose }) {
 
 function AssignForm({ onClose }) {
   const { assignMembers } = useGroupsContext();
-  const [count, setCount] = useState('');
+  const [membersPerGroup, setMembersPerGroup] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   async function save() {
-    const n = Number(count);
+    const n = Number(membersPerGroup);
     if (!Number.isInteger(n) || n < 1) {
-      setError('Enter a whole number of groups (1 or more).');
+      setError('Enter a whole number of members per group (1 or more).');
       return;
     }
     setSaving(true);
     setError('');
 
     try {
-      await assignMembers({ count: n });
+      await assignMembers({ membersPerGroup: n });
       onClose();
     } catch (err) {
       console.error('Failed to assign members:', err);
@@ -379,18 +379,21 @@ function AssignForm({ onClose }) {
 
         <div className="stack">
           <div>
-            <label className="field-label">How many groups?</label>
+            <label className="field-label">Members per group</label>
             <input
               type="number"
               min={1}
-              max={50}
-              value={count}
-              onChange={(e) => setCount(e.target.value)}
-              placeholder="e.g. 4"
+              max={500}
+              value={membersPerGroup}
+              onChange={(e) => setMembersPerGroup(e.target.value)}
+              placeholder="e.g. 8"
               className="input"
             />
           </div>
-          <p className="assign-hint">Readers will be distributed randomly across the groups.</p>
+          <p className="assign-hint">
+            Enough groups will be created to hold that many readers each, and readers will be
+            distributed randomly.
+          </p>
         </div>
 
         <button

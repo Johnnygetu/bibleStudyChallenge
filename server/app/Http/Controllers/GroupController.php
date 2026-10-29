@@ -130,23 +130,25 @@ class GroupController extends Controller
     }
 
     /**
-     * Create the requested number of groups and randomly distribute all
-     * readers across them.
+     * Create enough groups to hold the requested number of readers each and
+     * randomly distribute all church-member readers across them.
      */
     public function assignRandom(Request $request)
     {
         $data = $request->validate([
-            'count' => 'required|integer|min:1|max:50',
+            'members_per_group' => 'required|integer|min:1|max:500',
         ]);
 
-        $readers = Reader::all();
+        $readers = Reader::where('is_church_member', true)->get();
 
         if ($readers->isEmpty()) {
             return response(['message' => 'There are no readers to assign to groups yet.'], 422);
         }
 
-        DB::transaction(function () use ($data, $readers) {
-            $groups = collect(range(1, $data['count']))
+        $groupCount = (int) ceil($readers->count() / $data['members_per_group']);
+
+        DB::transaction(function () use ($groupCount, $readers) {
+            $groups = collect(range(1, $groupCount))
                 ->map(fn ($n) => Group::create(['name' => 'Group '.$n]));
 
             // Shuffle once, then deal readers round-robin so the groups

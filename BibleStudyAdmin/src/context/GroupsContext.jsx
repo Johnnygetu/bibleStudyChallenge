@@ -52,15 +52,16 @@ export function GroupsProvider({ children }) {
     await reload();
   }, [reload]);
 
-  // Create `count` groups and randomly distribute all readers across them.
-  const assignMembers = useCallback(async ({ count }) => {
+  // Create as many groups as needed to hold `membersPerGroup` readers each,
+  // then randomly distribute all readers across them.
+  const assignMembers = useCallback(async ({ membersPerGroup }) => {
     const response = await fetch(`${apiUrl}/groups/assign-random`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify({ count }),
+      body: JSON.stringify({ members_per_group: membersPerGroup }),
     });
     if (!response.ok) {
       const body = await response.json().catch(() => null);

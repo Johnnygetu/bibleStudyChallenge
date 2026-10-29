@@ -1,9 +1,9 @@
-import { Users, TrendingUp, HelpCircle, Flame, AlertTriangle, BookOpen, UsersRound, MessageSquare } from 'lucide-react';
-import { Avatar, Skeleton, ReaderSkeletonList, ErrorState } from '@/components/ui';
+import { Users, TrendingUp, HelpCircle, AlertTriangle, BookOpen, UsersRound, MessageSquare } from 'lucide-react';
+import { Skeleton, ErrorState } from '@/components/ui';
 import { useDashboardContext } from '@/context/DashboardContext';
 
 export default function Dashboard({ onNavigate }) {
-  const { stats, currentWeek, totalWeeks, recentReaders, loading, error, reload } = useDashboardContext();
+  const { stats, currentWeek, totalWeeks, loading, error, reload } = useDashboardContext();
 
   if (error) {
     return (
@@ -32,10 +32,14 @@ export default function Dashboard({ onNavigate }) {
           <Skeleton className="sk-mini" />
         </div>
 
-        {/* Recent readers */}
+        {/* Church membership breakdown */}
         <div>
           <div className="sk-line sk-heading" />
-          <ReaderSkeletonList count={3} />
+          <div className="grid-3">
+            <Skeleton className="sk-mini" />
+            <Skeleton className="sk-mini" />
+            <Skeleton className="sk-mini" />
+          </div>
         </div>
       </div>
     );
@@ -121,29 +125,24 @@ export default function Dashboard({ onNavigate }) {
         </button>
       </div>
 
-      {/* Recent readers */}
-      {recentReaders.length > 0 && (
-        <div>
-          <h2 className="section-title">Recently Joined Readers</h2>
-          <div className="card divided">
-            {recentReaders.map((reader) => (
-              <div key={reader.id} className="row">
-                <Avatar name={reader.name} size={40} />
-                <div className="row-main">
-                  <p className="row-title truncate">{reader.name}</p>
-                  <p className="row-sub truncate">{reader.phone || 'No phone'}</p>
-                </div>
-                {reader.current_streak > 0 && (
-                  <span className="pill pill-ember">
-                    <Flame className="icon-12" />
-                    {reader.current_streak}
-                  </span>
-                )}
-              </div>
-            ))}
+      {/* Church membership breakdown */}
+      <div>
+        <h2 className="section-title">Church Membership</h2>
+        <div className="grid-3">
+          <div className="stat-tile">
+            <p className="stat-tile-value">{stats.churchMembers}</p>
+            <p className="stat-tile-label">Church Members</p>
+          </div>
+          <div className="stat-tile">
+            <p className="stat-tile-value danger">{stats.nonChurchMembers}</p>
+            <p className="stat-tile-label">Non Members</p>
+          </div>
+          <div className="stat-tile">
+            <p className="stat-tile-value ember">{stats.unknownChurchMembers}</p>
+            <p className="stat-tile-label">Unknown</p>
           </div>
         </div>
-      )}
+      </div>
 
       {stats.totalReaders === 0 && (
         <div className="empty-block">
