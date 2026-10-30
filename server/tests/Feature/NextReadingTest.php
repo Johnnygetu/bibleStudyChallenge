@@ -100,12 +100,27 @@ class NextReadingTest extends TestCase
             ->assertJsonFragment(['order_id' => $orders[2]->id]);
     }
 
-    public function test_returns_404_when_there_are_no_more_chapters(): void
+    public function test_rejects_a_reader_who_is_up_to_date_and_sends_todays_last_chapter(): void
     {
-        // The client holds the plan's last chapter, so nothing follows.
-        [$plan, $orders] = $this->makePlanWithVerses(now()->subDay()->toDateString(), array_fill(0, 4, 60));
+        // Started three days ago, so today is day 4; the reader is already on
+        // day 5's chapters (orders 10-11) and is not behind. Sending today's
+        // last chapter means there is nothing extra to add.
+        [$plan, $orders] = $this->makePlanWithVerses(now()->subDays(3)->toDateString(), array_fill(0, 12, 60));
         $reader = $this->makeReader();
-        $this->putReaderAt($reader, $orders[3]);
+        $this->putReaderAt($reader, $orders[9]);
+
+        $this->getJson(
+            "/api/readers/{$reader->id}/plans/{$plan->id}/next-reading?after_order_id={$orders[11]->id}"
+        )->assertStatus(422);
+    }
+
+    public function test_returns_404_when_a_lagging_reader_is_at_the_plans_last_chapter(): void
+    {
+        // Behind schedule but today's list already ends on the plan's last
+        // chapter, so nothing follows.
+        [$plan, $orders] = $this->makePlanWithVerses(now()->subDays(5)->toDateString(), array_fill(0, 4, 60));
+        $reader = $this->makeReader();
+        $this->putReaderAt($reader, $orders[1]);
 
         $this->getJson(
             "/api/readers/{$reader->id}/plans/{$plan->id}/next-reading?after_order_id={$orders[3]->id}"
