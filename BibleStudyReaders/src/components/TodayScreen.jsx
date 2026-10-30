@@ -27,12 +27,14 @@ export function TodayScreen() {
     startDateLabel,
     isLoading,
     isSaving,
+    isAddingChapter,
     canSave,
     saveMessage,
     error: readingError,
     reload: reloadReadings,
     toggleChapter,
     saveProgress,
+    addNextChapter,
   } = useReadingContext();
   const {
     quizLoading,
@@ -182,6 +184,20 @@ export function TodayScreen() {
             <p className="reading-card__empty">No chapters are assigned for today.</p>
           )}
         </div>
+
+        {/* Only offered to a reader who is behind the schedule: the last
+            chapter they are on is not yet up to date. A reader on track has
+            nothing to add. */}
+        {apiMetadata?.is_catch_up_mode && (
+          <button
+            type="button"
+            className="reading-card__add-chapter"
+            onClick={addNextChapter}
+            disabled={isAddingChapter}
+          >
+            {isAddingChapter ? "Adding..." : "Add 1 chapter"}
+          </button>
+        )}
 
         {/* Only offered when there is something to send — a reader who is
             already caught up has nothing to save. Kept on screen while a save

@@ -414,6 +414,43 @@ class ReaderController extends Controller
     }
 
     /**
+     * The chapter right after the one the reader app last received. Used by
+     * the reader app's "Add 1 chapter" button to pull one more chapter into
+     * today's reading without touching saved progress. The client sends the
+     * order id of the last reading it holds; when it sends none, the reader's
+     * own position is used so the list never restarts from the beginning.
+     */
+    public function nextReading(Request $request, Reader $reader, Plan $plan)
+    {
+        $afterOrderId = (int) $request->query('after_order_id', 0);
+
+        if ($afterOrderId <= 0) {
+            $afterOrderId = $plan->lagFor($reader, false)['actual_order_id'];
+        }
+
+        $next = Order::where('plan_id', $plan->id)
+            ->where('id', '>', $afterOrderId)
+            ->orderBy('id')
+            ->with('chapter')
+            ->first();
+
+        if (! $next) {
+            return response()->json(['message' => 'There are no more chapters in this plan.'], 404);
+        }
+
+        $chapter = $next->chapter;
+
+        return response([
+            'order_id' => $next->id,
+            'chapter_id' => $chapter->id,
+            'book' => $chapter->book,
+            'chapter_number' => $chapter->chapter_number,
+            'num_verses' => $chapter->num_verses,
+            'is_completed' => false,
+        ]);
+    }
+
+    /**
      * Provide the reader's lag status using the shared helper.
      */
     public function lagStatus(Reader $reader, Plan $plan)

@@ -27,6 +27,7 @@ export function ReadingProvider({ children }) {
   // checklist for the completion message in response to the click, not because
   // an earlier visit had already finished the day.
   const [savedToday, setSavedToday] = useState(false);
+  const [isAddingChapter, setIsAddingChapter] = useState(false);
   const [error, setError] = useState(null);
   // Bumped by reload(); re-runs the fetch and, through it, the quiz fetch.
   const [reloadToken, setReloadToken] = useState(0);
@@ -291,6 +292,30 @@ export function ReadingProvider({ children }) {
     }
   }, [apiUrl, apiMetadata, buildUrl, completedLabels, readings, reload, user]);
 
+  // Pull the next chapter into today's reading list, one click at a time.
+  const addNextChapter = useCallback(async () => {
+    if (!user?.id || !apiUrl) return;
+
+    // Tell the server which chapter we already have so it returns the one
+    // right after it.
+    const lastOrderId = readings.length ? readings[readings.length - 1].order_id : 0;
+
+    setIsAddingChapter(true);
+    try {
+      const res = await fetch(
+        buildUrl(`${apiUrl}/readers/${user.id}/plans/1/next-reading?after_order_id=${lastOrderId}`),
+        { headers: { Accept: "application/json" } }
+      );
+      const chapter = await readJsonResponse(res, "The next chapter");
+
+      setReadings((prev) => [...prev, chapter]);
+    } catch (err) {
+      setSaveMessage({ type: "error", text: getApiErrorMessage(err, apiUrl) });
+    } finally {
+      setIsAddingChapter(false);
+    }
+  }, [apiUrl, buildUrl, readings, user]);
+
   // Hidden entirely when the ticked chapters already match what the server
   // stored, so being caught up never invites a save that would change nothing.
   const canSave =
@@ -311,6 +336,7 @@ export function ReadingProvider({ children }) {
     chapterKey,
     isLoading,
     isSaving,
+    isAddingChapter,
     canSave,
     saveMessage,
     error,
@@ -318,6 +344,7 @@ export function ReadingProvider({ children }) {
     reload,
     toggleChapter,
     saveProgress,
+    addNextChapter,
   };
 
   return <ReadingContext.Provider value={value}>{children}</ReadingContext.Provider>;

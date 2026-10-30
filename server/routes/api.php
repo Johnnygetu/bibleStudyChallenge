@@ -51,6 +51,7 @@ Route::delete('posts/{post}', [PostsController::class, 'destroy'])->name('posts.
 Route::delete('admin/posts/{post}', [PostsController::class, 'adminDestroy'])->name('posts.admin-destroy');
 Route::get('progress', [ProgressController::class, 'index'])->name('progress.index');
 Route::get('readers/{reader}/plans/{plan}/daily-readings', [ReaderController::class, 'dailyReadings']);
+Route::get('readers/{reader}/plans/{plan}/next-reading', [ReaderController::class, 'nextReading']);
 Route::get('readers/{reader}/plans/{plan}/lag-status', [ReaderController::class, 'lagStatus']);
 Route::post('readers/{reader}/plans/{plan}/save-progress', [ReaderController::class, 'saveProgress']);
 Route::post('readers/{reader}/plans/{plan}/set-progress', [ReaderController::class, 'setProgress']);
