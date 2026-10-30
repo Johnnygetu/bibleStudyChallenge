@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Search, Phone, X, Flame, MoreVertical, Trash2, Edit2, Users, UserCheck } from 'lucide-react';
+import { Search, Phone, X, Flame, MoreVertical, Trash2, Edit2, Users, UserCheck, UserPlus } from 'lucide-react';
 import { Avatar, ErrorState, ReaderSkeletonList } from '@/components/ui';
 import { useUsersContext } from '@/context/UsersContext';
+import { useGroupsContext } from '@/context/GroupsContext';
 
 // The server's church column is a tri-state: true/false is the reader's own
 // answer, null means they have not answered yet.
@@ -28,7 +29,6 @@ export default function Readers() {
     reload,
     patchUser,
     removeUser,
-    checkChurchMembership,
     checkChurchMembershipAllMembers,
     churchCheckQueue,
   } = useUsersContext();
@@ -36,6 +36,8 @@ export default function Readers() {
 
   const [editing, setEditing] = useState(null);
   const [menuFor, setMenuFor] = useState(null);
+  // Reader whose "Assign group" picker is open, null otherwise.
+  const [assignFor, setAssignFor] = useState(null);
   // { type, text } shown as a toast after a membership check.
   const [toast, setToast] = useState(null);
   // { done, total } while the bulk membership check runs, null otherwise.
@@ -74,19 +76,6 @@ export default function Readers() {
     setMenuFor(null);
   }
 
-  async function handleCheckMembership(reader) {
-    setMenuFor(null);
-    const outcome = await checkChurchMembership(reader.id);
-
-    if (outcome.status === 'member') {
-      setToast({ type: 'success', text: `${reader.name} is a church member.` });
-    } else if (outcome.status === 'not-member') {
-      setToast({ type: 'muted', text: `${reader.name} is not a church member.` });
-    } else {
-      setToast({ type: 'error', text: 'Could not check membership. Please try again.' });
-    }
-  }
-
   async function handleCheckAll() {
     setBulk({ done: 0, total: checkAllCount });
 
@@ -104,6 +93,12 @@ export default function Readers() {
       type: summary.failed > 0 ? 'error' : summary.members > 0 ? 'success' : 'muted',
       text: `${summary.resumed ? 'Resumed' : 'Checked'} ${readers} — ${members}${failed}.`,
     });
+  }
+
+  async function handleAssigned(reader, group) {
+    setAssignFor(null);
+    await reload();
+    setToast({ type: 'success', text: `${reader.name} added to ${group.name}.` });
   }
 
   function updateStatus(id, status) {
@@ -216,14 +211,15 @@ export default function Readers() {
                       >
                         <Edit2 className="icon-14" /> Edit
                       </button>
-                      {/* Only an unanswered reader can be checked; once the
-                          column is true or false there is nothing left to set. */}
-                      {reader.is_church_member == null && (
+                      {/* Only church members are eligible for a group. */}
+                      {reader.is_church_member === true && (
                         <button
-                          onClick={() => handleCheckMembership(reader)}
+                          onClick={() => { setAssignFor(reader); setMenuFor(null); }}
                           className="menu-item menu-item-primary"
+                          disabled={!!reader.group}
+                          title={reader.group ? `Already in ${reader.group.name}` : 'Assign this reader to a group'}
                         >
-                          <UserCheck className="icon-14" /> Check member
+                          <UserPlus className="icon-14" /> Assign group
                         </button>
                       )}
                       {reader.status !== 'active' && (
@@ -266,6 +262,15 @@ export default function Readers() {
         />
       )}
 
+      {/* Assign a reader to a group */}
+      {assignFor && (
+        <AssignGroupModal
+          reader={assignFor}
+          onClose={() => setAssignFor(null)}
+          onAssigned={(group) => handleAssigned(assignFor, group)}
+        />
+      )}
+
       {/* Progress while the bulk membership check runs */}
       {bulk && (
         <div className="modal-overlay">
@@ -293,6 +298,63 @@ export default function Readers() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function AssignGroupModal({ reader, onClose, onAssigned }) {
+  const { groups, loading, addMember } = useGroupsContext();
+  const [savingId, setSavingId] = useState(null);
+  const [error, setError] = useState(null);
+
+  async function pick(group) {
+    setSavingId(group.id);
+    setError(null);
+    try {
+      await addMember({ groupId: group.id, readerId: reader.id });
+      onAssigned(group);
+    } catch (err) {
+      setError(err.message);
+      setSavingId(null);
+    }
+  }
+
+  return (
+    <div className="modal-overlay modal-bottom fade-in" onClick={onClose}>
+      <div
+        className="modal modal-sheet slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-head">
+          <h3 className="modal-title serif">Assign {reader.name}</h3>
+          <button onClick={onClose} className="btn-ghost">
+            <X className="icon-20" />
+          </button>
+        </div>
+
+        {loading ? (
+          <p className="page-sub">Loading groups...</p>
+        ) : groups.length === 0 ? (
+          <p className="page-sub">No groups yet. Create one on the Groups page first.</p>
+        ) : (
+          <div className="stack">
+            {groups.map((group) => (
+              <button
+                key={group.id}
+                onClick={() => pick(group)}
+                disabled={savingId !== null}
+                className="menu-item"
+              >
+                <Users className="icon-14" />
+                {group.name}
+                {savingId === group.id && <span className="page-sub"> Assigning...</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {error && <p className="page-sub">{error}</p>}
+      </div>
     </div>
   );
 }

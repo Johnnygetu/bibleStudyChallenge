@@ -13,6 +13,8 @@ function toReader(row) {
     // Tri-state from the server: true/false is the reader's answer, null means
     // they have not been asked yet.
     is_church_member: row.is_church_member ?? null,
+    // The reader's group, or null when they have not been assigned one yet.
+    group: row.groups?.[0] ? { id: row.groups[0].id, name: row.groups[0].name } : null,
     status: 'active',
     current_streak: 0,
     longest_streak: 0,

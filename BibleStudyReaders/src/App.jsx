@@ -46,7 +46,10 @@ function AppContent() {
       {needsChurchAnswer && <ChurchMembershipModal onAnswer={submitChurchMembership} />}
       <main className="app-main">
         {activeTab === "today" && <TodayScreen />}
-        {activeTab === "leaderboard" && <LeaderboardScreen />}
+        {/* Church members alone see the leaderboard; a null or false answer
+            falls back to the Today screen. */}
+        {activeTab === "leaderboard" &&
+          (isChurchMember === true ? <LeaderboardScreen /> : <TodayScreen />)}
         {activeTab === "community" && <CommunityScreen />}
       </main>
 

@@ -14,6 +14,14 @@ class GroupController extends Controller
         return Group::withCount('readers')->latest()->get();
     }
 
+    /**
+     * Lightweight group list: just the id and name for pickers.
+     */
+    public function indexNames()
+    {
+        return Group::select('id', 'name')->latest()->get();
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -127,6 +135,29 @@ class GroupController extends Controller
         });
 
         return response($group->load('readers'));
+    }
+
+    /**
+     * Add a reader to this group. A reader can only belong to one group, so
+     * their existing membership is moved here when they already have one.
+     */
+    public function addMember(Request $request, Group $group)
+    {
+        $data = $request->validate([
+            'reader_id' => 'required|integer|exists:readers,id',
+        ]);
+
+        if ($group->readers()->whereKey($data['reader_id'])->exists()) {
+            return response(['message' => 'That reader is already in this group.'], 422);
+        }
+
+        DB::transaction(function () use ($group, $data) {
+            DB::table('members')->where('reader_id', $data['reader_id'])->delete();
+
+            $group->readers()->attach($data['reader_id']);
+        });
+
+        return response($group->load('readers'), 201);
     }
 
     /**

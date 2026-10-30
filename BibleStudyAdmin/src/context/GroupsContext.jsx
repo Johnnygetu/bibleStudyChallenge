@@ -70,6 +70,24 @@ export function GroupsProvider({ children }) {
     await reload();
   }, [reload]);
 
+  // Put a reader into a group. A reader only belongs to one group, so the
+  // server moves them out of any group they were already in.
+  const addMember = useCallback(async ({ groupId, readerId }) => {
+    const response = await fetch(`${apiUrl}/groups/${groupId}/members`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ reader_id: readerId }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.message || `The server responded with ${response.status}.`);
+    }
+    await reload();
+  }, [reload]);
+
   const deleteGroup = useCallback(async (id) => {
     try {
       const response = await fetch(`${apiUrl}/groups/${id}`, {
@@ -161,6 +179,7 @@ export function GroupsProvider({ children }) {
     reload,
     addGroup,
     assignMembers,
+    addMember,
     swapMember,
     setLeader,
     deleteGroup,

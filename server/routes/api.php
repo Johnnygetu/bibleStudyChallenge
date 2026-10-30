@@ -15,6 +15,7 @@ use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\ReaderController;
 use App\Http\Controllers\StreakResetController;
 use App\Http\Controllers\TelegramController;
+use App\Http\Controllers\TelegramGroupMembersController;
 use App\Http\Controllers\TelegramGroupReadingController;
 use App\Http\Controllers\TelegramLeaderboardController;
 use Illuminate\Support\Facades\Route;
@@ -34,8 +35,10 @@ Route::get('questions/by-chapters', [QuestionController::class, 'byChapters'])->
 Route::get('book-chapters', [BookChapterController::class, 'index'])->name('book-chapters.index');
 Route::post('questions/bulk', [QuestionController::class, 'bulkStore'])->name('questions.bulk');
 Route::apiResource('questions', QuestionController::class);
+Route::get('groups/names', [GroupController::class, 'indexNames'])->name('groups.names');
 Route::apiResource('groups', GroupController::class);
 Route::post('groups/assign-random', [GroupController::class, 'assignRandom'])->name('groups.assign-random');
+Route::post('groups/{group}/members', [GroupController::class, 'addMember'])->name('groups.members.add');
 Route::post('groups/{group}/swap', [GroupController::class, 'swapMember'])->name('groups.swap');
 Route::put('groups/{group}/members/{reader}/leader', [GroupController::class, 'setLeader'])->name('groups.set-leader');
 Route::get('leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard.index');
@@ -74,6 +77,10 @@ Route::post('telegram/daily-readings', DailyReadingBroadcastController::class)->
 
 // Group reading broadcast: today's reading plan goes to the Telegram group.
 Route::post('telegram/group-reading', TelegramGroupReadingController::class)->name('telegram.group-reading');
+
+// Group roster broadcast: every church member in a group is told who else is
+// in their group and who leads it.
+Route::post('telegram/group-members', TelegramGroupMembersController::class)->name('telegram.group-members');
 
 // Daily card graphic: the reading card PNG goes to the Telegram group.
 Route::post('telegram/send_graphic', [TelegramController::class, 'sendDailyCardImage'])->name('telegram.send_graphic');

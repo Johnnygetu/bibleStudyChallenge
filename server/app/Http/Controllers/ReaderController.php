@@ -29,7 +29,7 @@ class ReaderController extends Controller
             return response()->json($reader);
         }
 
-        return Reader::all();
+        return Reader::with('groups:id,name')->get();
     }
 
     public function showByChatId(string $chatId)

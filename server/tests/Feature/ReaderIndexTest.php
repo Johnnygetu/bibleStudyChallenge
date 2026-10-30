@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Group;
 use App\Models\Reader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -26,6 +27,18 @@ class ReaderIndexTest extends TestCase
             ]);
 
         $this->assertSame($newest->id, $response->json('1.id'));
+    }
+
+    public function test_includes_each_readers_groups(): void
+    {
+        $reader = $this->createReader();
+        $group = Group::create(['name' => 'Group 1']);
+        $group->readers()->attach($reader->id);
+
+        $this->getJson('/api/readers')
+            ->assertStatus(200)
+            ->assertJsonPath('0.groups.0.id', $group->id)
+            ->assertJsonPath('0.groups.0.name', 'Group 1');
     }
 
     public function test_returns_200_with_empty_list_when_no_readers_exist(): void
