@@ -68,22 +68,22 @@ class NextReadingTest extends TestCase
 
     public function test_returns_the_chapter_after_the_order_the_client_holds(): void
     {
-        // Two 60-verse chapters per day. Started yesterday, reader finished day
-        // 1, so today is orders 2-3; the client sends order 3 and gets order 4.
+        // Two 60-verse chapters per day. Today is day 2, so its last chapter is
+        // order 3; the client sends order 2 and gets the chapter right after.
         [$plan, $orders] = $this->makePlanWithVerses(now()->subDay()->toDateString(), array_fill(0, 8, 60));
         $reader = $this->makeReader();
         $this->putReaderAt($reader, $orders[1]);
 
         $response = $this->getJson(
-            "/api/readers/{$reader->id}/plans/{$plan->id}/next-reading?after_order_id={$orders[3]->id}"
+            "/api/readers/{$reader->id}/plans/{$plan->id}/next-reading?after_order_id={$orders[2]->id}"
         );
 
         $response->assertOk()
             ->assertJsonFragment([
-                'order_id' => $orders[4]->id,
-                'chapter_id' => $orders[4]->chapter_id,
+                'order_id' => $orders[3]->id,
+                'chapter_id' => $orders[3]->chapter_id,
                 'book' => 'Genesis',
-                'chapter_number' => 5,
+                'chapter_number' => 4,
                 'num_verses' => 60,
                 'is_completed' => false,
             ]);
@@ -100,17 +100,16 @@ class NextReadingTest extends TestCase
             ->assertJsonFragment(['order_id' => $orders[2]->id]);
     }
 
-    public function test_rejects_a_reader_who_is_up_to_date_and_sends_todays_last_chapter(): void
+    public function test_rejects_a_client_holding_todays_last_chapter_or_past_it(): void
     {
-        // Started three days ago, so today is day 4; the reader is already on
-        // day 5's chapters (orders 10-11) and is not behind. Sending today's
-        // last chapter means there is nothing extra to add.
-        [$plan, $orders] = $this->makePlanWithVerses(now()->subDays(3)->toDateString(), array_fill(0, 12, 60));
+        // Started yesterday, so today is day 2 and its last chapter is order 3;
+        // sending that order (or anything past it) has nothing more to add.
+        [$plan, $orders] = $this->makePlanWithVerses(now()->subDay()->toDateString(), array_fill(0, 8, 60));
         $reader = $this->makeReader();
-        $this->putReaderAt($reader, $orders[9]);
+        $this->putReaderAt($reader, $orders[1]);
 
         $this->getJson(
-            "/api/readers/{$reader->id}/plans/{$plan->id}/next-reading?after_order_id={$orders[11]->id}"
+            "/api/readers/{$reader->id}/plans/{$plan->id}/next-reading?after_order_id={$orders[3]->id}"
         )->assertStatus(422);
     }
 

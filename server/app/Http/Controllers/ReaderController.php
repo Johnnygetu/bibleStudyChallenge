@@ -424,10 +424,17 @@ class ReaderController extends Controller
     {
         $afterOrderId = (int) $request->query('after_order_id', 0);
 
-        // The plan's last chapter, the same for every reader — so there is no
-        // need to build today's reading for this one. A client already holding
-        // it, or past it, has nothing more to add.
-        $lastOrderId = (int) $plan->orders()->max('id');
+        // Work out which plan day we are on, then take that day's last chapter.
+        // A client already holding it, or past it, has nothing more to add.
+        $dayLag = $plan->lagFor($reader, false);
+        $lastOrderId = (int) ($dayLag['target_order_id'] ?? 0);
+
+        Log::info('next-reading', [
+            'reader_id' => $reader->id,
+            'after_order_id' => $afterOrderId,
+            'day_number' => $dayLag['target_day_number'] ?? $dayLag['current_day_number'] ?? null,
+            'last_order_id' => $lastOrderId,
+        ]);
 
         if ($afterOrderId >= $lastOrderId) {
             return response()->json([

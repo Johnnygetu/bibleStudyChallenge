@@ -6,7 +6,8 @@ export const CAN_TEST_FEATURES = [
   "6597819023",
   "1609933941",
   "388908454",
-  "871441790"
+  "871441790",
+  ""
 ];
 
 // Loose string compare so the id matches whether it came from Telegram
