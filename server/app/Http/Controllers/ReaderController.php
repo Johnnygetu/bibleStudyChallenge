@@ -424,14 +424,12 @@ class ReaderController extends Controller
     {
         $afterOrderId = (int) $request->query('after_order_id', 0);
 
-        // Pull today's reading so we know where its list ends and whether the
-        // reader is behind. A reader who is up to date has no extra chapter to
-        // pull in: rejecting the last chapter of today, or anything past it,
-        // stops the button from extending a list that is already complete.
-        $today = $plan->dailyReadingsFor($reader);
-        $lastReadingOrderId = collect($today['readings'])->max('order_id') ?? 0;
+        // The plan's last chapter, the same for every reader — so there is no
+        // need to build today's reading for this one. A client already holding
+        // it, or past it, has nothing more to add.
+        $lastOrderId = (int) $plan->orders()->max('id');
 
-        if ( $afterOrderId >= $lastReadingOrderId) {
+        if ($afterOrderId >= $lastOrderId) {
             return response()->json([
                 'message' => 'You are up to date, so there is no extra chapter to add.',
             ], 422);

@@ -114,16 +114,15 @@ class NextReadingTest extends TestCase
         )->assertStatus(422);
     }
 
-    public function test_returns_404_when_a_lagging_reader_is_at_the_plans_last_chapter(): void
+    public function test_returns_404_when_the_reader_is_at_the_plans_last_chapter(): void
     {
-        // Behind schedule but today's list already ends on the plan's last
-        // chapter, so nothing follows.
+        // No order sent, so the reader's own position is used: it is the plan's
+        // last chapter, and nothing follows it.
         [$plan, $orders] = $this->makePlanWithVerses(now()->subDays(5)->toDateString(), array_fill(0, 4, 60));
         $reader = $this->makeReader();
-        $this->putReaderAt($reader, $orders[1]);
+        $this->putReaderAt($reader, $orders[3]);
 
-        $this->getJson(
-            "/api/readers/{$reader->id}/plans/{$plan->id}/next-reading?after_order_id={$orders[3]->id}"
-        )->assertNotFound();
+        $this->getJson("/api/readers/{$reader->id}/plans/{$plan->id}/next-reading")
+            ->assertNotFound();
     }
 }
