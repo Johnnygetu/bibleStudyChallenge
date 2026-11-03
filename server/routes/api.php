@@ -41,6 +41,7 @@ Route::post('groups/assign-random', [GroupController::class, 'assignRandom'])->n
 Route::post('groups/{group}/members', [GroupController::class, 'addMember'])->name('groups.members.add');
 Route::post('groups/{group}/swap', [GroupController::class, 'swapMember'])->name('groups.swap');
 Route::put('groups/{group}/members/{reader}/leader', [GroupController::class, 'setLeader'])->name('groups.set-leader');
+Route::delete('groups/{group}/members/{reader}', [GroupController::class, 'removeMember'])->name('groups.members.remove');
 Route::get('leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard.index');
 Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
 Route::get('posts', [PostsController::class, 'index'])->name('posts.index');

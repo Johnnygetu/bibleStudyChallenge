@@ -161,6 +161,21 @@ class GroupController extends Controller
     }
 
     /**
+     * Remove a reader from this group. The reader itself is kept; only the
+     * group membership is dropped.
+     */
+    public function removeMember(Group $group, Reader $reader)
+    {
+        if (! $group->readers()->whereKey($reader->id)->exists()) {
+            return response(['message' => 'That reader is not in this group.'], 422);
+        }
+
+        $group->readers()->detach($reader->id);
+
+        return response(null, 204);
+    }
+
+    /**
      * Create enough groups to hold the requested number of readers each and
      * randomly distribute all church-member readers across them.
      */

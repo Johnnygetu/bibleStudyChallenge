@@ -6,7 +6,6 @@ import { useReadingContext } from "@/context/ReadingContext";
 import { useQuizContext } from "@/context/QuizContext";
 import { useLeaderboardContext } from "@/context/LeaderboardContext";
 import { ApiErrorMessage, ProgressBar, Avatar } from "@/components/ui";
-import { canTestFeature } from "@/lib/canTestFeature";
 import ayatLogo from "@/assets/ayat-logo.png";
 import "./TodayScreen.css";
 
@@ -14,7 +13,7 @@ import "./TodayScreen.css";
 // fetched and derived by its contexts; the component only renders it.
 export function TodayScreen() {
   const { greeting, todayDateStr } = useGeneralContext();
-  const { user, displayName } = useUserContext();
+  const { displayName } = useUserContext();
   const { navigate } = useNavigationContext();
   const {
     apiMetadata,
@@ -186,10 +185,9 @@ export function TodayScreen() {
           )}
         </div>
 
-        {/* Only offered to a reader who is behind the schedule and is on the
-            in-development tester list: a reader on track has nothing to add,
-            and everyone else must not see this half-built feature. */}
-        {apiMetadata?.is_catch_up_mode && canTestFeature(user?.chatId) && (
+        {/* Only offered to a reader who is behind the schedule: a reader on
+            track has nothing to add. */}
+        {apiMetadata?.is_catch_up_mode && (
           <button
             type="button"
             className="reading-card__add-chapter"

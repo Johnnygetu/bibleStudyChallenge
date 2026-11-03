@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Users, ChevronLeft, ChevronRight, AlertCircle, ArrowLeftRight, Crown } from 'lucide-react';
+import { X, Users, ChevronLeft, ChevronRight, AlertCircle, ArrowLeftRight, Crown, Trash2 } from 'lucide-react';
 import { Avatar, ErrorState, ReaderSkeletonList } from '@/components/ui';
 import { useGroupsContext } from '@/context/GroupsContext';
 
@@ -19,6 +19,7 @@ export default function Groups() {
   const [showAssign, setShowAssign] = useState(false);
   const [swapTarget, setSwapTarget] = useState(null); // member being moved
   const [leaderTarget, setLeaderTarget] = useState(null); // member to promote/demote
+  const [deleteTarget, setDeleteTarget] = useState(null); // member to remove from the group
 
   // Detail view: one group and its members
   if (selectedId) {
@@ -102,6 +103,14 @@ export default function Groups() {
                       <ArrowLeftRight className="icon-20" />
                     </button>
                   )}
+                  <button
+                    onClick={() => setDeleteTarget(member)}
+                    className="btn-ghost btn-danger-ghost"
+                    aria-label={`Remove ${member.name} from the group`}
+                    title="Remove from group"
+                  >
+                    <Trash2 className="icon-20" />
+                  </button>
                 </div>
               );
             })}
@@ -113,6 +122,9 @@ export default function Groups() {
         )}
         {leaderTarget && (
           <LeaderConfirm member={leaderTarget} onClose={() => setLeaderTarget(null)} />
+        )}
+        {deleteTarget && (
+          <DeleteMemberConfirm member={deleteTarget} onClose={() => setDeleteTarget(null)} />
         )}
       </div>
     );
@@ -331,8 +343,66 @@ function LeaderConfirm({ member, onClose }) {
   );
 }
 
-function AssignForm({ onClose }) {
-  const { assignMembers } = useGroupsContext();
+// Remove a member from the open group. The reader is kept; only their
+// group membership is dropped.
+function DeleteMemberConfirm({ member, onClose }) {
+  const { groupDetail, removeMember } = useGroupsContext();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function remove() {
+    setSaving(true);
+    setError('');
+    try {
+      await removeMember({ groupId: groupDetail.id, readerId: member.id });
+      onClose();
+    } catch (err) {
+      console.error('Failed to remove member:', err);
+      setError(err.message || 'Failed to remove this member.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay fade-in" onClick={onClose}>
+      <div className="modal scale-in" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3 className="modal-title serif">Remove Member</h3>
+          <button onClick={onClose} className="btn-ghost">
+            <X className="icon-20" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="form-error">
+            <AlertCircle className="icon-16 form-error-icon" />
+            {error}
+          </div>
+        )}
+
+        <div className="stack">
+          <p className="assign-hint">
+            {member.name} will be removed from {groupDetail?.name}. The reader is not deleted — they
+            just leave this group.
+          </p>
+          <button
+            onClick={remove}
+            disabled={saving}
+            className="btn-primary btn-block btn-save btn-danger"
+          >
+            {saving ? 'Removing...' : 'Remove Member'}
+          </button>
+          <button onClick={onClose} disabled={saving} className="btn-ghost btn-block">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AssignForm({ onClose }) {  const { assignMembers } = useGroupsContext();
   const [membersPerGroup, setMembersPerGroup] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');

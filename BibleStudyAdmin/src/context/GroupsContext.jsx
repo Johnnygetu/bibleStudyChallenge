@@ -166,6 +166,20 @@ export function GroupsProvider({ children }) {
     await openGroup(groupId);
   }, [openGroup]);
 
+  // Remove a reader from the open group, then refresh the list and detail.
+  const removeMember = useCallback(async ({ groupId, readerId }) => {
+    const response = await fetch(`${apiUrl}/groups/${groupId}/members/${readerId}`, {
+      method: 'DELETE',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.message || `The server responded with ${response.status}.`);
+    }
+    await reload();
+    await openGroup(groupId);
+  }, [reload, openGroup]);
+
   const closeGroup = useCallback(() => {
     setSelectedId(null);
     setGroupDetail(null);
@@ -182,6 +196,7 @@ export function GroupsProvider({ children }) {
     addMember,
     swapMember,
     setLeader,
+    removeMember,
     deleteGroup,
     selectedId,
     groupDetail,
