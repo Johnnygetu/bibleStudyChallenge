@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Users, ChevronLeft, ChevronRight, AlertCircle, ArrowLeftRight, Crown, Trash2 } from 'lucide-react';
+import { X, Users, ChevronLeft, ChevronRight, AlertCircle, ArrowLeftRight, Crown, Trash2, TrendingUp } from 'lucide-react';
 import { Avatar, ErrorState, ReaderSkeletonList } from '@/components/ui';
 import { useGroupsContext } from '@/context/GroupsContext';
 
@@ -80,6 +80,12 @@ export default function Groups() {
                       )}
                     </div>
                     <p className="row-sub truncate">{member.phone_number || 'No phone'}</p>
+                    {member.total_days > 0 && (
+                      <span className="pill-xs pill-progress">
+                        <TrendingUp className="icon-10" />
+                        Progress {member.days_done} of {member.total_days}
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => setLeaderTarget(member)}
@@ -159,7 +165,7 @@ export default function Groups() {
             <Users className="icon-32 empty-glyph" />
           </div>
           <p className="empty-title">No groups yet</p>
-          <p className="empty-sub">Tap Assign Members to split your readers into groups randomly</p>
+          <p className="empty-sub">Tap Assign Members to split your readers into balanced groups</p>
           <button
             onClick={() => setShowAssign(true)}
             className="btn-primary btn-compact"
@@ -462,7 +468,7 @@ function AssignForm({ onClose }) {  const { assignMembers } = useGroupsContext()
           </div>
           <p className="assign-hint">
             Enough groups will be created to hold that many readers each, and readers will be
-            distributed randomly.
+            spread evenly by progress so every group gets a fair mix.
           </p>
         </div>
 

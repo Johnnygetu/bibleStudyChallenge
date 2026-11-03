@@ -963,6 +963,15 @@ ol {
   flex-shrink: 0;
 }
 
+.pill-progress {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.25rem;
+  background: rgba(1, 30, 48, 0.08);
+  color: var(--primary-300);
+  flex-shrink: 0;
+}
+
 .btn-leader-on {
   color: var(--amber-500);
 }

@@ -97,6 +97,34 @@ class Plan extends Model
     }
 
     /**
+     * How many days this plan runs for, based on its computed schedule.
+     */
+    public function totalDays(): int
+    {
+        return count($this->getSchedule());
+    }
+
+    /**
+     * How many whole schedule days a reader has finished, based on where their
+     * last recorded study position falls. Shared by the admin progress board
+     * and the group roster.
+     */
+    public function daysCompletedFor(Reader $reader): int
+    {
+        $actualOrderId = $this->lagFor($reader)['actual_order_id'];
+
+        $daysDone = 0;
+        foreach ($this->getSchedule() as $day) {
+            if (end($day['chapters'])['order_id'] > $actualOrderId) {
+                break;
+            }
+            $daysDone++;
+        }
+
+        return $daysDone;
+    }
+
+    /**
      * Today's readings for one reader: applies dynamic limits so a reader who
      * has fallen behind can catch up, always finishes on a whole chapter
      * boundary, and reports the day/streak numbers the reader-facing UI needs.

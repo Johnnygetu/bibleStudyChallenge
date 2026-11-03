@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\BookChapter;
 use App\Models\Group;
+use App\Models\Order;
+use App\Models\Plan;
 use App\Models\Reader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -62,5 +65,51 @@ class GroupAssignRandomTest extends TestCase
             ->assertJson(['message' => 'There are no readers to assign to groups yet.']);
 
         $this->assertDatabaseCount('groups', 0);
+    }
+
+    public function test_spreads_strong_and_weak_readers_evenly(): void
+    {
+        $plan = Plan::create([
+            'name' => 'Bible Challenge',
+            'no_days' => 4,
+            'starting_day' => now()->toDateString(),
+            'daily_verse_limit' => 120,
+        ]);
+
+        $chapters = [];
+        foreach (range(1, 4) as $number) {
+            $chapter = BookChapter::create([
+                'book' => 'Genesis',
+                'chapter_number' => $number,
+                'num_verses' => 120,
+            ]);
+            Order::create(['plan_id' => $plan->id, 'chapter_id' => $chapter->id]);
+            $chapters[$number] = $chapter;
+        }
+
+        $strongest = $this->makeReader('Strongest', true);
+        $strong = $this->makeReader('Strong', true);
+        $weak = $this->makeReader('Weak', true);
+        $weakest = $this->makeReader('Weakest', true);
+
+        // Progress: strongest 3 days, strong 2, weak 1, weakest 0.
+        $strongest->studyDays()->create(['last_studied_chapter_id' => $chapters[3]->id]);
+        $strong->studyDays()->create(['last_studied_chapter_id' => $chapters[2]->id]);
+        $weak->studyDays()->create(['last_studied_chapter_id' => $chapters[1]->id]);
+
+        $this->postJson('/api/groups/assign-random', ['members_per_group' => 2])
+            ->assertStatus(201);
+
+        $groups = Group::with('readers')->orderBy('name')->get();
+
+        $this->assertCount(2, $groups);
+        $this->assertEqualsCanonicalizing(
+            [$strongest->id, $weakest->id],
+            $groups[0]->readers->pluck('id')->all(),
+        );
+        $this->assertEqualsCanonicalizing(
+            [$strong->id, $weak->id],
+            $groups[1]->readers->pluck('id')->all(),
+        );
     }
 }

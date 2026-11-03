@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Group;
+use App\Models\Plan;
 use App\Models\Reader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +36,25 @@ class GroupController extends Controller
 
     public function show(Group $group)
     {
-        return $group->load('readers');
+        $group->load('readers');
+
+        // Attach each member's completed-day progress so the roster can show
+        // a compact "Progress X of Y" indicator next to their name.
+        $plan = Plan::current();
+        $totalDays = $plan ? $plan->totalDays() : 0;
+
+        $group->readers->each(function (Reader $reader) use ($plan, $totalDays) {
+            $daysDone = 0;
+
+            if ($plan && $totalDays > 0) {
+                $daysDone = min($plan->daysCompletedFor($reader), $totalDays);
+            }
+
+            $reader->setAttribute('days_done', $daysDone);
+            $reader->setAttribute('total_days', $totalDays);
+        });
+
+        return $group;
     }
 
     public function update(Request $request, Group $group)
@@ -176,8 +195,12 @@ class GroupController extends Controller
     }
 
     /**
-     * Create enough groups to hold the requested number of readers each and
-     * randomly distribute all church-member readers across them.
+     * Create enough groups to hold the requested number of readers each, then
+     * hand all church-member readers out evenly.
+     *
+     * Readers are ranked by progress first, strongest to weakest, and dealt
+     * with a snake draft so every group ends up with a fair mix of stronger
+     * and weaker readers and even sizes.
      */
     public function assignRandom(Request $request)
     {
@@ -193,14 +216,32 @@ class GroupController extends Controller
 
         $groupCount = (int) ceil($readers->count() / $data['members_per_group']);
 
-        DB::transaction(function () use ($groupCount, $readers) {
+        // Rank by how far each reader has got, best first. PHP keeps the
+        // original (name/id) order for equal progress, so the result is
+        // stable when there is no plan or nobody has read yet.
+        $plan = Plan::current();
+
+        $ranked = $readers
+            ->sortByDesc(fn (Reader $reader) => $plan ? $plan->daysCompletedFor($reader) : 0)
+            ->values();
+
+        DB::transaction(function () use ($groupCount, $ranked) {
             $groups = collect(range(1, $groupCount))
                 ->map(fn ($n) => Group::create(['name' => 'Group '.$n]));
 
-            // Shuffle once, then deal readers round-robin so the groups
-            // end up random but evenly sized.
-            $readers->shuffle()->values()->each(function ($reader, $index) use ($groups) {
-                $groups[$index % $groups->count()]->readers()->attach($reader->id);
+            // Snake draft: strongest first, then reverse the order each round
+            // so the best and weakest readers are spread across all groups.
+            $groupTotal = $groups->count();
+
+            $ranked->each(function (Reader $reader, int $index) use ($groups, $groupTotal) {
+                $round = intdiv($index, $groupTotal);
+                $slot = $index % $groupTotal;
+
+                if ($round % 2 === 1) {
+                    $slot = $groupTotal - 1 - $slot;
+                }
+
+                $groups[$slot]->readers()->attach($reader->id);
             });
         });
 

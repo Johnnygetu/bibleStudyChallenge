@@ -23,26 +23,16 @@ class ProgressController extends Controller
 
         $schedule = $plan->getSchedule();
         $totalDays = count($schedule);
-        $dayTargets = array_map(
-            fn (array $day) => end($day['chapters'])['order_id'],
-            $schedule,
-        );
 
         $readers = Reader::orderBy('name')
             ->get()
-            ->map(function (Reader $reader) use ($plan, $dayTargets, $totalDays) {
+            ->map(function (Reader $reader) use ($plan, $totalDays) {
                 $lag = $plan->lagFor($reader);
                 $actualOrderId = $lag['actual_order_id'];
 
                 // A day counts as done once every chapter of that day has
                 // been studied.
-                $daysDone = 0;
-                foreach ($dayTargets as $targetOrderId) {
-                    if ($targetOrderId > $actualOrderId) {
-                        break;
-                    }
-                    $daysDone++;
-                }
+                $daysDone = $plan->daysCompletedFor($reader);
 
                 $daysMissed = $lag['is_lagging']
                     ? max(0, $lag['target_day_number'] - $daysDone)
