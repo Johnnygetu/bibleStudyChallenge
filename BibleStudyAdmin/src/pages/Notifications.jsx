@@ -7,6 +7,7 @@ import {
   Plus,
   Send,
   Clock,
+  Trash2,
   X,
 } from 'lucide-react';
 import { ErrorState, ReaderSkeletonList } from '@/components/ui';
@@ -25,8 +26,16 @@ function formatPostTime(value) {
 }
 
 export default function Notifications({ onNavigate }) {
-  const { notifications, loading, error, reload } = useNotificationsContext();
+  const { notifications, loading, error, reload, deleteNotification } = useNotificationsContext();
   const [adding, setAdding] = useState(false);
+  const [actionError, setActionError] = useState('');
+
+  // Delete is only offered for pending rows. The server enforces this too, so
+  // a refused delete restores the row and reports why inline.
+  async function removeNotification(id) {
+    const result = await deleteNotification(id);
+    setActionError(result.ok ? '' : result.message);
+  }
 
   return (
     <div className="page stack-lg fade-in">
@@ -45,6 +54,13 @@ export default function Notifications({ onNavigate }) {
       </div>
 
       <p className="posts-window">Scheduled &amp; sent</p>
+
+      {actionError && (
+        <div className="form-error">
+          <AlertCircle className="icon-16 form-error-icon" />
+          {actionError}
+        </div>
+      )}
 
       <button
         onClick={() => setAdding(true)}
@@ -114,6 +130,19 @@ export default function Notifications({ onNavigate }) {
                   )}
                   {notification.sent ? 'Sent' : 'Pending'}
                 </span>
+
+                {/* Only unsent notifications can be deleted; sent ones are history. */}
+                {!notification.sent && (
+                  <button
+                    type="button"
+                    className="posts-delete"
+                    aria-label="Delete notification"
+                    title="Delete notification"
+                    onClick={() => removeNotification(notification.id)}
+                  >
+                    <Trash2 className="icon-16" />
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -132,16 +161,18 @@ function AddNotificationModal({ onClose }) {
   const [imageFile, setImageFile] = useState(null);
   const [content, setContent] = useState('');
   const [postTime, setPostTime] = useState('');
+  const [postNow, setPostNow] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const canSubmit = content.trim().length > 0 && postTime.length > 0 && !saving;
+  const canSubmit =
+    content.trim().length > 0 && (postNow || postTime.length > 0) && !saving;
 
   async function save() {
     setSaving(true);
     setError('');
     try {
-      await addNotification({ imageFile, content, postTime });
+      await addNotification({ imageFile, content, postTime, postNow });
       onClose();
     } catch (err) {
       setError(
@@ -205,14 +236,30 @@ function AddNotificationModal({ onClose }) {
             <label className="field-label" htmlFor="notification-time">
               Post time *
             </label>
-            <input
-              id="notification-time"
-              type="datetime-local"
-              value={postTime}
-              onChange={(e) => setPostTime(e.target.value)}
-              disabled={saving}
-              className="input"
-            />
+            {postNow ? (
+              <p className="notification-postnow-hint">
+                This notification will be posted right away.
+              </p>
+            ) : (
+              <input
+                id="notification-time"
+                type="datetime-local"
+                value={postTime}
+                onChange={(e) => setPostTime(e.target.value)}
+                disabled={saving}
+                className="input"
+              />
+            )}
+            <label className="notification-postnow" htmlFor="notification-post-now">
+              <input
+                id="notification-post-now"
+                type="checkbox"
+                checked={postNow}
+                onChange={(e) => setPostNow(e.target.checked)}
+                disabled={saving}
+              />
+              Post now
+            </label>
           </div>
         </div>
 

@@ -60,3 +60,20 @@
   background: var(--ink-800);
   color: var(--ink-400);
 }
+
+/* "Post now" checkbox sitting under the time field. */
+.notification-postnow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--ink-200);
+  cursor: pointer;
+}
+
+/* Stand-in shown where the time input would be when posting immediately. */
+.notification-postnow-hint {
+  font-size: 0.8125rem;
+  color: var(--ink-400);
+}
