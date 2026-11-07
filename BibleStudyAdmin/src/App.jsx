@@ -8,6 +8,7 @@ import Progress from '@/pages/Progress.jsx';
 import Quizzes from '@/pages/Quizzes.jsx';
 import Leaderboard from '@/pages/Leaderboard.jsx';
 import Posts from '@/pages/Posts.jsx';
+import Notifications from '@/pages/Notifications.jsx';
 import AppProviders from '@/context/AppProviders';
 
 const tabs = [
@@ -59,6 +60,7 @@ export default function App() {
           {activeTab === 'quizzes' && <Quizzes />}
           {activeTab === 'leaderboard' && <Leaderboard />}
           {activeTab === 'posts' && <Posts onNavigate={setActiveTab} />}
+          {activeTab === 'notifications' && <Notifications onNavigate={setActiveTab} />}
         </main>
 
         {/* Bottom Navigation */}

@@ -1,4 +1,4 @@
-import { Users, TrendingUp, HelpCircle, AlertTriangle, BookOpen, UsersRound, MessageSquare } from 'lucide-react';
+import { Users, TrendingUp, HelpCircle, AlertTriangle, BookOpen, UsersRound, MessageSquare, Bell } from 'lucide-react';
 import { Skeleton, ErrorState } from '@/components/ui';
 import { useDashboardContext } from '@/context/DashboardContext';
 
@@ -105,6 +105,15 @@ export default function Dashboard({ onNavigate }) {
       >
         <MessageSquare className="icon-20" strokeWidth={2.2} />
         Posts
+      </button>
+
+      {/* Notifications shortcut: opens the notifications manager */}
+      <button
+        onClick={() => onNavigate?.('notifications')}
+        className="btn-primary btn-block dashboard-posts-btn"
+      >
+        <Bell className="icon-20" strokeWidth={2.2} />
+        Notifications
       </button>
 
       {/* On track vs falling behind */}

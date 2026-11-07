@@ -8,6 +8,7 @@ use App\Http\Controllers\GroupController;
 use App\Http\Controllers\InactiveReaderReminderController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\MessagingController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PostsController;
 use App\Http\Controllers\ProgressController;
@@ -50,6 +51,9 @@ Route::post('posts/{post}/like', [PostsController::class, 'like'])->name('posts.
 Route::delete('posts/{post}', [PostsController::class, 'destroy'])->name('posts.destroy');
 // Admin removal: same note row, but any note goes and a reason is required.
 Route::delete('admin/posts/{post}', [PostsController::class, 'adminDestroy'])->name('posts.admin-destroy');
+Route::post('notifications', [NotificationController::class, 'store'])->name('notifications.store');
+Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+Route::delete('notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
 Route::get('progress', [ProgressController::class, 'index'])->name('progress.index');
 Route::get('readers/{reader}/plans/{plan}/daily-readings', [ReaderController::class, 'dailyReadings']);
 Route::get('readers/{reader}/plans/{plan}/next-reading', [ReaderController::class, 'nextReading']);

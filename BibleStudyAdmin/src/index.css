@@ -602,7 +602,7 @@ ol {
   width: 100%;
 }
 
-/* Dashboard: full-width shortcut under the KPI stat cards. */
+/* Dashboard: full-width shortcut buttons under the KPI stat cards. */
 .dashboard-posts-btn {
   display: flex;
   align-items: center;
