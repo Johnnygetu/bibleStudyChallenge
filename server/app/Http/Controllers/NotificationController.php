@@ -160,6 +160,61 @@ class NotificationController extends Controller
     }
 
     /**
+     * Post every unsent notification whose post time has arrived to the
+     * Telegram group. Intended to be hit on a schedule: it picks up the
+     * scheduled notifications the store action left unsent, sends each one,
+     * and records a successful send on the row so it is not sent twice.
+     */
+    public function sendDue()
+    {
+        $due = Notification::where('notification_sent', false)
+            ->where('post_time', '<=', now())
+            ->orderBy('post_time')
+            ->get();
+
+        Log::info('Notifications sendDue: request received', [
+            'due_count' => $due->count(),
+        ]);
+
+        $sent = 0;
+        $failed = 0;
+        $results = [];
+
+        foreach ($due as $notification) {
+            if ($this->sendToGroup($notification)) {
+                $notification->update(['notification_sent' => true]);
+                $sent++;
+                $results[] = ['notification_id' => $notification->id, 'status' => 'sent'];
+
+                Log::info('Notifications sendDue: notification sent and marked as sent', [
+                    'notification_id' => $notification->id,
+                ]);
+            } else {
+                $failed++;
+                $results[] = ['notification_id' => $notification->id, 'status' => 'failed'];
+
+                Log::warning('Notifications sendDue: notification could not be sent, left unsent', [
+                    'notification_id' => $notification->id,
+                ]);
+            }
+        }
+
+        Log::info('Notifications sendDue: finished', [
+            'due_count' => $due->count(),
+            'sent' => $sent,
+            'failed' => $failed,
+        ]);
+
+        return response([
+            'ok' => $failed === 0,
+            'due' => $due->count(),
+            'sent' => $sent,
+            'failed' => $failed,
+            'results' => $results,
+        ]);
+    }
+
+    /**
      * Post a notification to the Telegram group (TELEGRAM_GROUP_CHAT_ID).
      * With an image the content rides along as the photo caption; without
      * one it is a plain text message. Telegram caps photo captions at 1024

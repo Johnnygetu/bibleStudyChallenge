@@ -53,6 +53,8 @@ Route::delete('posts/{post}', [PostsController::class, 'destroy'])->name('posts.
 Route::delete('admin/posts/{post}', [PostsController::class, 'adminDestroy'])->name('posts.admin-destroy');
 Route::post('notifications', [NotificationController::class, 'store'])->name('notifications.store');
 Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+// Scheduled send: post every due, unsent notification to the Telegram group.
+Route::post('notifications/send-due', [NotificationController::class, 'sendDue'])->name('notifications.send-due');
 Route::delete('notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
 Route::get('progress', [ProgressController::class, 'index'])->name('progress.index');
 Route::get('readers/{reader}/plans/{plan}/daily-readings', [ReaderController::class, 'dailyReadings']);

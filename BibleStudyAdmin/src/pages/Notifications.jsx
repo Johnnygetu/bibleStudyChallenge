@@ -25,6 +25,24 @@ function formatPostTime(value) {
   });
 }
 
+// Scheduled posts only land on the hour or half hour, so snap the picked
+// datetime-local value to the nearest 30-minute mark before storing it.
+function formatLocalInput(date) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+}
+
+function snapToHalfHour(value) {
+  if (!value) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const step = 30 * 60 * 1000;
+  return formatLocalInput(new Date(Math.round(date.getTime() / step) * step));
+}
+
 export default function Notifications({ onNavigate }) {
   const { notifications, loading, error, reload, deleteNotification } = useNotificationsContext();
   const [adding, setAdding] = useState(false);
@@ -165,8 +183,14 @@ function AddNotificationModal({ onClose }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Times in the past cannot be scheduled; the picker and the submit guard
+  // both refuse them.
+  const minPostTime = formatLocalInput(new Date());
+
   const canSubmit =
-    content.trim().length > 0 && (postNow || postTime.length > 0) && !saving;
+    content.trim().length > 0 &&
+    (postNow || (postTime.length > 0 && postTime >= minPostTime)) &&
+    !saving;
 
   async function save() {
     setSaving(true);
@@ -244,8 +268,10 @@ function AddNotificationModal({ onClose }) {
               <input
                 id="notification-time"
                 type="datetime-local"
+                step={1800}
+                min={minPostTime}
                 value={postTime}
-                onChange={(e) => setPostTime(e.target.value)}
+                onChange={(e) => setPostTime(snapToHalfHour(e.target.value))}
                 disabled={saving}
                 className="input"
               />
