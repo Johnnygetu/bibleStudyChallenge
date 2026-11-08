@@ -19,7 +19,20 @@ import './Notifications.css';
 // post time, and delivery status.
 function formatPostTime(value) {
   if (!value) return '';
-  return new Date(value).toLocaleString(undefined, {
+  // Show the stored DB time as-is. The API serializes datetimes with a `Z`,
+  // and letting the browser convert that to the local zone was shifting the
+  // displayed time by the offset (e.g. +3h). Parse the wall-clock parts and
+  // rebuild a local Date so no offset is applied.
+  const match = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(String(value));
+  if (!match) return '';
+  const [, year, month, day, hour, minute] = match;
+  return new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+  ).toLocaleString(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
